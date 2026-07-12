@@ -1,0 +1,1023 @@
+/* =========================================================
+   Medicine Reminder — Modern Healthcare Dashboard
+   Soft blue, glassmorphism, rounded cards, gradient header
+   ========================================================= */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+/* ---------------------------------------------------------
+   1. CSS Variables — Light theme (default)
+   --------------------------------------------------------- */
+:root {
+  /* Brand / soft blue palette */
+  --color-primary-50: #eef6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+
+  --color-accent: #2e7d6f;
+  --color-accent-light: #4fb3a0;
+
+  /* Status colors */
+  --color-taken: #16a34a;
+  --color-taken-bg: rgba(22, 163, 74, 0.12);
+  --color-upcoming: #f59e0b;
+  --color-upcoming-bg: rgba(245, 158, 11, 0.14);
+  --color-missed: #dc2626;
+  --color-missed-bg: rgba(220, 38, 38, 0.12);
+
+  /* Surfaces */
+  --bg-app: #eef4fb;
+  --bg-gradient-start: #3b82f6;
+  --bg-gradient-end: #2e7d6f;
+  --surface-card: rgba(255, 255, 255, 0.72);
+  --surface-card-solid: #ffffff;
+  --surface-border: rgba(255, 255, 255, 0.55);
+  --surface-blur: 16px;
+
+  /* Text */
+  --text-primary: #0f2438;
+  --text-secondary: #52667a;
+  --text-muted: #8698ab;
+  --text-on-primary: #ffffff;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(15, 36, 56, 0.06);
+  --shadow-md: 0 8px 24px rgba(15, 36, 56, 0.10);
+  --shadow-lg: 0 16px 40px rgba(15, 36, 56, 0.16);
+  --shadow-fab: 0 10px 28px rgba(37, 99, 235, 0.45);
+
+  /* Radius */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+
+  /* Layout */
+  --header-height: 68px;
+  --bottom-nav-height: 72px;
+  --content-max-width: 1180px;
+
+  /* Motion */
+  --transition-fast: 160ms ease;
+  --transition-base: 240ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 420ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  color-scheme: light;
+}
+
+/* ---------------------------------------------------------
+   1b. CSS Variables — Dark theme
+   --------------------------------------------------------- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary-50: #0f1c2e;
+    --color-primary-100: #142943;
+    --color-primary-200: #1b3555;
+    --color-primary-400: #5b9dfb;
+    --color-primary-500: #4f8ef7;
+    --color-primary-600: #3b7de0;
+    --color-primary-700: #2f66ba;
+
+    --color-accent: #4fb3a0;
+    --color-accent-light: #6fcab9;
+
+    --color-taken: #34d399;
+    --color-taken-bg: rgba(52, 211, 153, 0.16);
+    --color-upcoming: #fbbf24;
+    --color-upcoming-bg: rgba(251, 191, 36, 0.16);
+    --color-missed: #f87171;
+    --color-missed-bg: rgba(248, 113, 113, 0.16);
+
+    --bg-app: #0b1520;
+    --bg-gradient-start: #1e3a63;
+    --bg-gradient-end: #16463d;
+    --surface-card: rgba(23, 34, 48, 0.68);
+    --surface-card-solid: #17222f;
+    --surface-border: rgba(255, 255, 255, 0.08);
+
+    --text-primary: #eef4fb;
+    --text-secondary: #aebdcd;
+    --text-muted: #7c8ba0;
+    --text-on-primary: #ffffff;
+
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.5);
+    --shadow-fab: 0 10px 28px rgba(59, 125, 224, 0.55);
+
+    color-scheme: dark;
+  }
+}
+
+/* ---------------------------------------------------------
+   2. Reset & base
+   --------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--text-primary);
+  background:
+    radial-gradient(circle at 15% 0%, var(--color-primary-100) 0%, transparent 45%),
+    var(--bg-app);
+  padding-bottom: calc(var(--bottom-nav-height) + var(--space-6));
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3 {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+p {
+  margin: 0;
+}
+
+ul, dl, dd {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-primary-400);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Skip link */
+.skip-link {
+  position: absolute;
+  top: -48px;
+  left: var(--space-4);
+  z-index: 100;
+  background: var(--color-primary-600);
+  color: var(--text-on-primary);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  transition: top var(--transition-base);
+}
+
+.skip-link:focus {
+  top: var(--space-4);
+}
+
+/* ---------------------------------------------------------
+   3. Header — sticky, gradient, glassmorphism
+   --------------------------------------------------------- */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  height: var(--header-height);
+  padding: 0 var(--space-5);
+  background: linear-gradient(120deg, var(--bg-gradient-start), var(--bg-gradient-end));
+  background-size: 200% 200%;
+  animation: gradientShift 12s ease infinite;
+  backdrop-filter: blur(var(--surface-blur));
+  -webkit-backdrop-filter: blur(var(--surface-blur));
+  box-shadow: var(--shadow-md);
+  color: var(--text-on-primary);
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.app-logo {
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.app-title {
+  font-size: 1.15rem;
+  color: var(--text-on-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.icon-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text-on-primary);
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.icon-button:hover {
+  background: rgba(255, 255, 255, 0.26);
+  transform: translateY(-2px);
+}
+
+.icon-button:active {
+  transform: translateY(0) scale(0.94);
+}
+
+.notification-dot {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-missed);
+  border: 2px solid var(--bg-gradient-start);
+  animation: pulseDot 2s ease-in-out infinite;
+}
+
+.avatar-link {
+  display: inline-block;
+  border-radius: 50%;
+  transition: transform var(--transition-fast);
+}
+
+.avatar-link:hover {
+  transform: scale(1.06);
+}
+
+.user-avatar {
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------------------------------------------------------
+   4. Main layout — grid
+   --------------------------------------------------------- */
+main {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4) var(--space-8);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+}
+
+/* ---------------------------------------------------------
+   5. Card base — glassmorphism, rounded, shadow, fade/slide in
+   --------------------------------------------------------- */
+.card {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(var(--surface-blur));
+  -webkit-backdrop-filter: blur(var(--surface-blur));
+  animation: fadeInUp var(--transition-slow) both;
+}
+
+.card > h2 {
+  font-size: 1.05rem;
+  margin-bottom: var(--space-4);
+  color: var(--text-primary);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.medicines-card { animation-delay: 60ms; }
+.next-reminder-card { animation-delay: 120ms; }
+.progress-card { animation-delay: 180ms; }
+
+/* ---------------------------------------------------------
+   6. Greeting card
+   --------------------------------------------------------- */
+.greeting-card {
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-accent));
+  color: var(--text-on-primary);
+  border: none;
+}
+
+.greeting-card h2 {
+  color: var(--text-on-primary);
+  font-size: 1.5rem;
+}
+
+.today-date {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.motivational-quote {
+  margin: var(--space-4) 0 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  font-style: italic;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* ---------------------------------------------------------
+   7. Today's medicines — grid of cards
+   --------------------------------------------------------- */
+.medicine-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.medicine-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  background: var(--surface-card-solid);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+/* Card lift hover effect */
+.medicine-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg);
+}
+
+.medicine-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.medicine-type-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-50);
+  color: var(--color-primary-600);
+  font-size: 1.2rem;
+}
+
+.medicine-card-header > div:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+
+.medicine-name {
+  font-size: 1.02rem;
+  color: var(--text-primary);
+}
+
+.medicine-type {
+  margin-top: 2px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Status badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.status-taken {
+  color: var(--color-taken);
+  background: var(--color-taken-bg);
+}
+
+.status-upcoming {
+  color: var(--color-upcoming);
+  background: var(--color-upcoming-bg);
+}
+
+.status-missed {
+  color: var(--color-missed);
+  background: var(--color-missed-bg);
+}
+
+/* Medicine details */
+.medicine-details {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-primary-50);
+  border-radius: var(--radius-sm);
+}
+
+.detail-item dt {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
+.detail-item dd {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.medicine-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* ---------------------------------------------------------
+   8. Buttons — primary / secondary / danger / text, ripple
+   --------------------------------------------------------- */
+.btn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast), opacity var(--transition-fast);
+}
+
+/* Ripple effect (pure CSS, centered burst on press) */
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  opacity: 0;
+  transform: scale(1);
+  pointer-events: none;
+}
+
+.btn:active::after {
+  animation: rippleBurst 520ms ease-out;
+}
+
+@keyframes rippleBurst {
+  0% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(28);
+  }
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+  color: var(--text-on-primary);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.45);
+}
+
+.btn-secondary {
+  background: transparent;
+  border-color: var(--color-primary-200);
+  color: var(--color-primary-600);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--color-primary-50);
+  transform: translateY(-2px);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444, var(--color-missed));
+  color: var(--text-on-primary);
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
+}
+
+.btn-danger:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(220, 38, 38, 0.45);
+}
+
+.btn-text {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.btn-text:hover {
+  color: var(--color-primary-600);
+  background: var(--color-primary-50);
+}
+
+/* ---------------------------------------------------------
+   9. Next reminder — countdown & pulse
+   --------------------------------------------------------- */
+.next-reminder-card {
+  background: linear-gradient(160deg, var(--surface-card-solid), var(--color-primary-50));
+}
+
+.next-reminder-content {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.pulse-indicator {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  grid-row: span 2;
+}
+
+.pulse-dot {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-upcoming);
+  box-shadow: 0 0 0 0 var(--color-upcoming-bg);
+}
+
+.pulse-dot::before,
+.pulse-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--color-upcoming);
+  opacity: 0.55;
+  animation: pulseRing 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.pulse-dot::after {
+  animation-delay: 0.6s;
+}
+
+@keyframes pulseRing {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}
+
+@keyframes pulseDot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(220, 38, 38, 0); }
+}
+
+.next-medicine-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.next-medicine-time {
+  margin-top: 4px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.countdown-timer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-card-solid);
+  box-shadow: var(--shadow-sm);
+}
+
+.countdown-segment {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 52px;
+}
+
+.countdown-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--color-primary-600);
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.countdown-separator {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  transform: translateY(-8px);
+}
+
+/* ---------------------------------------------------------
+   10. Weekly progress — circular progress + animation
+   --------------------------------------------------------- */
+.progress-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-7);
+}
+
+.circular-progress {
+  --progress: 82%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: conic-gradient(var(--color-primary-500) var(--progress), var(--color-primary-100) 0);
+  box-shadow: var(--shadow-sm);
+  animation: progressGrow 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.circular-progress::before {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  background: var(--surface-card-solid);
+  box-shadow: inset 0 2px 6px rgba(15, 36, 56, 0.08);
+}
+
+.circular-progress-value,
+.circular-progress-caption {
+  position: relative;
+  z-index: 1;
+}
+
+.circular-progress-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--color-primary-700);
+}
+
+.circular-progress-caption {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@keyframes progressGrow {
+  from {
+    background: conic-gradient(var(--color-primary-500) 0%, var(--color-primary-100) 0);
+  }
+  to {
+    background: conic-gradient(var(--color-primary-500) var(--progress), var(--color-primary-100) 0);
+  }
+}
+
+.progress-stats {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-primary-50);
+  border-radius: var(--radius-sm);
+}
+
+.stat-item dt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.stat-item dt .fa-circle-check { color: var(--color-taken); }
+.stat-item dt .fa-circle-xmark { color: var(--color-missed); }
+.stat-item dt .fa-percent { color: var(--color-primary-600); }
+
+.stat-item dd {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+/* ---------------------------------------------------------
+   11. Floating Action Button
+   --------------------------------------------------------- */
+.fab {
+  position: fixed;
+  right: var(--space-6);
+  bottom: calc(var(--bottom-nav-height) + var(--space-5));
+  z-index: 60;
+  width: 60px;
+  height: 60px;
+  border: none;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  color: var(--text-on-primary);
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-accent));
+  box-shadow: var(--shadow-fab);
+  cursor: pointer;
+  animation: fabFloat 3.2s ease-in-out infinite;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.fab:hover {
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 0 16px 34px rgba(37, 99, 235, 0.5);
+}
+
+.fab:active {
+  transform: translateY(-1px) scale(0.96);
+}
+
+@keyframes fabFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.fab:hover { animation-play-state: paused; }
+
+/* ---------------------------------------------------------
+   12. Bottom navigation — fixed
+   --------------------------------------------------------- */
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 55;
+  height: var(--bottom-nav-height);
+  background: var(--surface-card);
+  border-top: 1px solid var(--surface-border);
+  backdrop-filter: blur(var(--surface-blur));
+  -webkit-backdrop-filter: blur(var(--surface-blur));
+  box-shadow: 0 -6px 20px rgba(15, 36, 56, 0.08);
+}
+
+.bottom-nav-list {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  padding: 0 var(--space-2);
+}
+
+.bottom-nav-link {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.bottom-nav-link i {
+  font-size: 1.15rem;
+  transition: transform var(--transition-fast);
+}
+
+.bottom-nav-link:hover {
+  color: var(--color-primary-600);
+}
+
+.bottom-nav-link:hover i {
+  transform: translateY(-2px);
+}
+
+.bottom-nav-link.is-active {
+  color: var(--color-primary-600);
+}
+
+.bottom-nav-link.is-active i {
+  transform: translateY(-2px);
+}
+
+.bottom-nav-link.is-active::before {
+  content: "";
+  position: absolute;
+}
+
+/* ---------------------------------------------------------
+   13. Responsive breakpoints
+   --------------------------------------------------------- */
+
+/* Tablet */
+@media (min-width: 768px) {
+  main {
+    padding: var(--space-7) var(--space-6) var(--space-8);
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .greeting-card,
+  .medicines-card {
+    grid-column: 1 / -1;
+  }
+
+  .medicine-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .app-header {
+    padding: 0 var(--space-7);
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  main {
+    grid-template-columns: 2fr 1fr;
+  }
+
+  .greeting-card {
+    grid-column: 1 / -1;
+  }
+
+  .medicines-card {
+    grid-column: 1 / 2;
+    grid-row: 2 / 4;
+  }
+
+  .medicine-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .next-reminder-card {
+    grid-column: 2 / 3;
+    grid-row: 2 / 3;
+  }
+
+  .progress-card {
+    grid-column: 2 / 3;
+    grid-row: 3 / 4;
+  }
+
+  .bottom-nav {
+    display: none;
+  }
+
+  body {
+    padding-bottom: var(--space-8);
+  }
+
+  .fab {
+    bottom: var(--space-7);
+  }
+}
+
+/* ---------------------------------------------------------
+   14. Reduced motion accessibility
+   --------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

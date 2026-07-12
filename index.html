@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Medicine Reminder</title>
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
+  <!-- 1. Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <img
+        class="app-logo"
+        src="https://placehold.co/40x40/2e7d6f/ffffff?text=MR"
+        alt="Medicine Reminder logo"
+        width="40"
+        height="40"
+      />
+      <h1 class="app-title">Medicine Reminder</h1>
+    </div>
+
+    <nav class="header-right" aria-label="User actions">
+      <button type="button" class="icon-button" aria-label="View notifications">
+        <i class="fa-solid fa-bell" aria-hidden="true"></i>
+        <span class="notification-dot" aria-hidden="true"></span>
+      </button>
+
+      <a href="#profile" class="avatar-link" aria-label="View your profile">
+        <img
+          class="user-avatar"
+          src="https://placehold.co/40x40/cccccc/555555?text=J"
+          alt="Jeeva's profile avatar"
+          width="40"
+          height="40"
+        />
+      </a>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    <!-- 2. Greeting Card -->
+    <section class="card greeting-card" aria-labelledby="greeting-heading">
+      <h2 id="greeting-heading">Good Morning, Jeeva</h2>
+      <p class="today-date">
+        <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+        <time datetime="2026-07-12">Sunday, 12 July 2026</time>
+      </p>
+      <blockquote class="motivational-quote">
+        <p>&ldquo;Your health is an investment, not an expense. Take your medicine on time!&rdquo;</p>
+      </blockquote>
+    </section>
+
+    <!-- 3. Today's Medicines -->
+    <section class="card medicines-card" aria-labelledby="todays-medicines-heading">
+      <h2 id="todays-medicines-heading">Today's Medicines</h2>
+
+      <ul class="medicine-list">
+        <li class="medicine-item">
+          <article class="medicine-card" aria-labelledby="med1-name">
+            <header class="medicine-card-header">
+              <div class="medicine-type-icon" aria-hidden="true">
+                <i class="fa-solid fa-tablets"></i>
+              </div>
+              <div>
+                <h3 id="med1-name" class="medicine-name">Metformin</h3>
+                <p class="medicine-type">Tablet</p>
+              </div>
+              <span class="status-badge status-upcoming">
+                <i class="fa-regular fa-clock" aria-hidden="true"></i> Upcoming
+              </span>
+            </header>
+
+            <dl class="medicine-details">
+              <div class="detail-item">
+                <dt>Dosage</dt>
+                <dd>500 mg</dd>
+              </div>
+              <div class="detail-item">
+                <dt>Time</dt>
+                <dd><time datetime="08:00">8:00 AM</time></dd>
+              </div>
+            </dl>
+
+            <div class="medicine-actions">
+              <button type="button" class="btn btn-primary">
+                <i class="fa-solid fa-check" aria-hidden="true"></i> Mark as Taken
+              </button>
+              <button type="button" class="btn btn-secondary">
+                <i class="fa-solid fa-forward" aria-hidden="true"></i> Skip
+              </button>
+              <button type="button" class="btn btn-text" aria-label="View details for Metformin">
+                <i class="fa-solid fa-circle-info" aria-hidden="true"></i> View Details
+              </button>
+            </div>
+          </article>
+        </li>
+
+        <li class="medicine-item">
+          <article class="medicine-card" aria-labelledby="med2-name">
+            <header class="medicine-card-header">
+              <div class="medicine-type-icon" aria-hidden="true">
+                <i class="fa-solid fa-capsules"></i>
+              </div>
+              <div>
+                <h3 id="med2-name" class="medicine-name">Vitamin D3</h3>
+                <p class="medicine-type">Capsule</p>
+              </div>
+              <span class="status-badge status-taken">
+                <i class="fa-solid fa-check" aria-hidden="true"></i> Taken
+              </span>
+            </header>
+
+            <dl class="medicine-details">
+              <div class="detail-item">
+                <dt>Dosage</dt>
+                <dd>1000 IU</dd>
+              </div>
+              <div class="detail-item">
+                <dt>Time</dt>
+                <dd><time datetime="09:00">9:00 AM</time></dd>
+              </div>
+            </dl>
+
+            <div class="medicine-actions">
+              <button type="button" class="btn btn-primary" disabled>
+                <i class="fa-solid fa-check" aria-hidden="true"></i> Mark as Taken
+              </button>
+              <button type="button" class="btn btn-secondary" disabled>
+                <i class="fa-solid fa-forward" aria-hidden="true"></i> Skip
+              </button>
+              <button type="button" class="btn btn-text" aria-label="View details for Vitamin D3">
+                <i class="fa-solid fa-circle-info" aria-hidden="true"></i> View Details
+              </button>
+            </div>
+          </article>
+        </li>
+
+        <li class="medicine-item">
+          <article class="medicine-card" aria-labelledby="med3-name">
+            <header class="medicine-card-header">
+              <div class="medicine-type-icon" aria-hidden="true">
+                <i class="fa-solid fa-prescription-bottle"></i>
+              </div>
+              <div>
+                <h3 id="med3-name" class="medicine-name">Cough Syrup</h3>
+                <p class="medicine-type">Syrup</p>
+              </div>
+              <span class="status-badge status-missed">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i> Missed
+              </span>
+            </header>
+
+            <dl class="medicine-details">
+              <div class="detail-item">
+                <dt>Dosage</dt>
+                <dd>10 ml</dd>
+              </div>
+              <div class="detail-item">
+                <dt>Time</dt>
+                <dd><time datetime="14:00">2:00 PM</time></dd>
+              </div>
+            </dl>
+
+            <div class="medicine-actions">
+              <button type="button" class="btn btn-primary">
+                <i class="fa-solid fa-check" aria-hidden="true"></i> Mark as Taken
+              </button>
+              <button type="button" class="btn btn-secondary">
+                <i class="fa-solid fa-forward" aria-hidden="true"></i> Skip
+              </button>
+              <button type="button" class="btn btn-text" aria-label="View details for Cough Syrup">
+                <i class="fa-solid fa-circle-info" aria-hidden="true"></i> View Details
+              </button>
+            </div>
+          </article>
+        </li>
+
+        <li class="medicine-item">
+          <article class="medicine-card" aria-labelledby="med4-name">
+            <header class="medicine-card-header">
+              <div class="medicine-type-icon" aria-hidden="true">
+                <i class="fa-solid fa-syringe"></i>
+              </div>
+              <div>
+                <h3 id="med4-name" class="medicine-name">Insulin</h3>
+                <p class="medicine-type">Injection</p>
+              </div>
+              <span class="status-badge status-upcoming">
+                <i class="fa-regular fa-clock" aria-hidden="true"></i> Upcoming
+              </span>
+            </header>
+
+            <dl class="medicine-details">
+              <div class="detail-item">
+                <dt>Dosage</dt>
+                <dd>10 units</dd>
+              </div>
+              <div class="detail-item">
+                <dt>Time</dt>
+                <dd><time datetime="20:00">8:00 PM</time></dd>
+              </div>
+            </dl>
+
+            <div class="medicine-actions">
+              <button type="button" class="btn btn-primary">
+                <i class="fa-solid fa-check" aria-hidden="true"></i> Mark as Taken
+              </button>
+              <button type="button" class="btn btn-secondary">
+                <i class="fa-solid fa-forward" aria-hidden="true"></i> Skip
+              </button>
+              <button type="button" class="btn btn-text" aria-label="View details for Insulin">
+                <i class="fa-solid fa-circle-info" aria-hidden="true"></i> View Details
+              </button>
+            </div>
+          </article>
+        </li>
+      </ul>
+    </section>
+
+    <!-- 4. Next Reminder -->
+    <section class="card next-reminder-card" aria-labelledby="next-reminder-heading">
+      <h2 id="next-reminder-heading">Next Reminder</h2>
+
+      <div class="next-reminder-content">
+        <span class="pulse-indicator" role="img" aria-label="Upcoming reminder indicator">
+          <span class="pulse-dot"></span>
+        </span>
+
+        <div class="next-reminder-details">
+          <p class="next-medicine-name">Metformin &mdash; 500 mg Tablet</p>
+          <p class="next-medicine-time">
+            Scheduled for <time datetime="08:00">8:00 AM</time>
+          </p>
+        </div>
+
+        <div class="countdown-timer" role="timer" aria-label="Time remaining until next dose">
+          <span class="countdown-segment">
+            <span class="countdown-value">00</span>
+            <span class="countdown-label">hrs</span>
+          </span>
+          <span class="countdown-separator" aria-hidden="true">:</span>
+          <span class="countdown-segment">
+            <span class="countdown-value">42</span>
+            <span class="countdown-label">min</span>
+          </span>
+          <span class="countdown-separator" aria-hidden="true">:</span>
+          <span class="countdown-segment">
+            <span class="countdown-value">18</span>
+            <span class="countdown-label">sec</span>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Weekly Progress -->
+    <section class="card progress-card" aria-labelledby="weekly-progress-heading">
+      <h2 id="weekly-progress-heading">Weekly Progress</h2>
+
+      <div class="progress-content">
+        <div
+          class="circular-progress"
+          role="img"
+          aria-label="Weekly adherence: 82 percent"
+        >
+          <span class="circular-progress-value">82%</span>
+          <span class="circular-progress-caption">Adherence</span>
+        </div>
+
+        <dl class="progress-stats">
+          <div class="stat-item">
+            <dt><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Medicines Taken</dt>
+            <dd>23</dd>
+          </div>
+          <div class="stat-item">
+            <dt><i class="fa-solid fa-circle-xmark" aria-hidden="true"></i> Medicines Missed</dt>
+            <dd>5</dd>
+          </div>
+          <div class="stat-item">
+            <dt><i class="fa-solid fa-percent" aria-hidden="true"></i> Adherence Percentage</dt>
+            <dd>82%</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+  </main>
+
+  <!-- 6. Add New Medicine Button (Floating Action Button) -->
+  <button type="button" class="fab" aria-label="Add new medicine">
+    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+  </button>
+
+  <!-- 7. Bottom Navigation -->
+  <nav class="bottom-nav" aria-label="Primary">
+    <ul class="bottom-nav-list">
+      <li>
+        <a href="#home" class="bottom-nav-link is-active" aria-current="page">
+          <i class="fa-solid fa-house" aria-hidden="true"></i>
+          <span>Home</span>
+        </a>
+      </li>
+      <li>
+        <a href="#medicines" class="bottom-nav-link">
+          <i class="fa-solid fa-pills" aria-hidden="true"></i>
+          <span>Medicines</span>
+        </a>
+      </li>
+      <li>
+        <a href="#calendar" class="bottom-nav-link">
+          <i class="fa-solid fa-calendar-days" aria-hidden="true"></i>
+          <span>Calendar</span>
+        </a>
+      </li>
+      <li>
+        <a href="#reports" class="bottom-nav-link">
+          <i class="fa-solid fa-chart-simple" aria-hidden="true"></i>
+          <span>Reports</span>
+        </a>
+      </li>
+      <li>
+        <a href="#profile" class="bottom-nav-link">
+          <i class="fa-solid fa-user" aria-hidden="true"></i>
+          <span>Profile</span>
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <script src="script.js"></script>
+</body>
+</html>
