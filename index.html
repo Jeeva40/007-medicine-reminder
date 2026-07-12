@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
   <title>Medicine Reminder</title>
   <link
     rel="stylesheet"
@@ -14,9 +15,17 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- Loading screen -->
+  <div class="loading-screen" id="loading-screen" aria-hidden="true">
+    <div class="loading-pulse">
+      <i class="fa-solid fa-heart-pulse"></i>
+    </div>
+    <p class="loading-text">Preparing your reminders&hellip;</p>
+  </div>
+
   <a class="skip-link" href="#main-content">Skip to main content</a>
 
-  <!-- 1. Header -->
+  <!-- Header -->
   <header class="app-header">
     <div class="header-left">
       <img
@@ -30,9 +39,13 @@
     </div>
 
     <nav class="header-right" aria-label="User actions">
-      <button type="button" class="icon-button" aria-label="View notifications">
+      <button type="button" class="icon-button" id="theme-toggle" aria-label="Switch to dark mode" aria-pressed="false">
+        <i class="fa-solid fa-moon" aria-hidden="true"></i>
+      </button>
+
+      <button type="button" class="icon-button" id="notification-toggle" aria-label="View notifications" aria-pressed="false">
         <i class="fa-solid fa-bell" aria-hidden="true"></i>
-        <span class="notification-dot" aria-hidden="true"></span>
+        <span class="notification-dot" id="notification-dot" aria-hidden="true"></span>
       </button>
 
       <a href="#profile" class="avatar-link" aria-label="View your profile">
@@ -48,186 +61,126 @@
   </header>
 
   <main id="main-content">
-    <!-- 2. Greeting Card -->
+    <!-- Onboarding card (shown for first-time / empty-list users) -->
+    <section class="card onboarding-card" id="onboarding-card" aria-labelledby="onboarding-heading" hidden>
+      <button type="button" class="onboarding-dismiss" id="onboarding-dismiss" aria-label="Dismiss welcome card">
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+      </button>
+      <div class="onboarding-icon" aria-hidden="true"><i class="fa-solid fa-hand-holding-heart"></i></div>
+      <h2 id="onboarding-heading">Welcome to Medicine Reminder</h2>
+      <p>Never miss a dose again. Add your first medicine and we&rsquo;ll take care of the reminders, tracking, and progress for you.</p>
+      <button type="button" class="btn btn-primary" id="onboarding-cta">
+        <i class="fa-solid fa-plus" aria-hidden="true"></i> Add Your First Medicine
+      </button>
+    </section>
+
+    <!-- Greeting Card -->
     <section class="card greeting-card" aria-labelledby="greeting-heading">
       <h2 id="greeting-heading">Good Morning, Jeeva</h2>
       <p class="today-date">
         <i class="fa-regular fa-calendar" aria-hidden="true"></i>
-        <time datetime="2026-07-12">Sunday, 12 July 2026</time>
+        <time datetime="2026-07-12" id="today-date-display">Sunday, 12 July 2026</time>
       </p>
       <blockquote class="motivational-quote">
         <p>&ldquo;Your health is an investment, not an expense. Take your medicine on time!&rdquo;</p>
       </blockquote>
     </section>
 
-    <!-- 3. Today's Medicines -->
-    <section class="card medicines-card" aria-labelledby="todays-medicines-heading">
-      <h2 id="todays-medicines-heading">Today's Medicines</h2>
-
-      <ul class="medicine-list">
-        <li class="medicine-item">
-          <article class="medicine-card" aria-labelledby="med1-name">
-            <header class="medicine-card-header">
-              <div class="medicine-type-icon" aria-hidden="true">
-                <i class="fa-solid fa-tablets"></i>
-              </div>
-              <div>
-                <h3 id="med1-name" class="medicine-name">Metformin</h3>
-                <p class="medicine-type">Tablet</p>
-              </div>
-              <span class="status-badge status-upcoming">
-                <i class="fa-regular fa-clock" aria-hidden="true"></i> Upcoming
-              </span>
-            </header>
-
-            <dl class="medicine-details">
-              <div class="detail-item">
-                <dt>Dosage</dt>
-                <dd>500 mg</dd>
-              </div>
-              <div class="detail-item">
-                <dt>Time</dt>
-                <dd><time datetime="08:00">8:00 AM</time></dd>
-              </div>
-            </dl>
-
-            <div class="medicine-actions">
-              <button type="button" class="btn btn-primary">
-                <i class="fa-solid fa-check" aria-hidden="true"></i> Mark as Taken
-              </button>
-              <button type="button" class="btn btn-secondary">
-                <i class="fa-solid fa-forward" aria-hidden="true"></i> Skip
-              </button>
-              <button type="button" class="btn btn-text" aria-label="View details for Metformin">
-                <i class="fa-solid fa-circle-info" aria-hidden="true"></i> View Details
-              </button>
-            </div>
-          </article>
-        </li>
-
-        <li class="medicine-item">
-          <article class="medicine-card" aria-labelledby="med2-name">
-            <header class="medicine-card-header">
-              <div class="medicine-type-icon" aria-hidden="true">
-                <i class="fa-solid fa-capsules"></i>
-              </div>
-              <div>
-                <h3 id="med2-name" class="medicine-name">Vitamin D3</h3>
-                <p class="medicine-type">Capsule</p>
-              </div>
-              <span class="status-badge status-taken">
-                <i class="fa-solid fa-check" aria-hidden="true"></i> Taken
-              </span>
-            </header>
-
-            <dl class="medicine-details">
-              <div class="detail-item">
-                <dt>Dosage</dt>
-                <dd>1000 IU</dd>
-              </div>
-              <div class="detail-item">
-                <dt>Time</dt>
-                <dd><time datetime="09:00">9:00 AM</time></dd>
-              </div>
-            </dl>
-
-            <div class="medicine-actions">
-              <button type="button" class="btn btn-primary" disabled>
-                <i class="fa-solid fa-check" aria-hidden="true"></i> Mark as Taken
-              </button>
-              <button type="button" class="btn btn-secondary" disabled>
-                <i class="fa-solid fa-forward" aria-hidden="true"></i> Skip
-              </button>
-              <button type="button" class="btn btn-text" aria-label="View details for Vitamin D3">
-                <i class="fa-solid fa-circle-info" aria-hidden="true"></i> View Details
-              </button>
-            </div>
-          </article>
-        </li>
-
-        <li class="medicine-item">
-          <article class="medicine-card" aria-labelledby="med3-name">
-            <header class="medicine-card-header">
-              <div class="medicine-type-icon" aria-hidden="true">
-                <i class="fa-solid fa-prescription-bottle"></i>
-              </div>
-              <div>
-                <h3 id="med3-name" class="medicine-name">Cough Syrup</h3>
-                <p class="medicine-type">Syrup</p>
-              </div>
-              <span class="status-badge status-missed">
-                <i class="fa-solid fa-xmark" aria-hidden="true"></i> Missed
-              </span>
-            </header>
-
-            <dl class="medicine-details">
-              <div class="detail-item">
-                <dt>Dosage</dt>
-                <dd>10 ml</dd>
-              </div>
-              <div class="detail-item">
-                <dt>Time</dt>
-                <dd><time datetime="14:00">2:00 PM</time></dd>
-              </div>
-            </dl>
-
-            <div class="medicine-actions">
-              <button type="button" class="btn btn-primary">
-                <i class="fa-solid fa-check" aria-hidden="true"></i> Mark as Taken
-              </button>
-              <button type="button" class="btn btn-secondary">
-                <i class="fa-solid fa-forward" aria-hidden="true"></i> Skip
-              </button>
-              <button type="button" class="btn btn-text" aria-label="View details for Cough Syrup">
-                <i class="fa-solid fa-circle-info" aria-hidden="true"></i> View Details
-              </button>
-            </div>
-          </article>
-        </li>
-
-        <li class="medicine-item">
-          <article class="medicine-card" aria-labelledby="med4-name">
-            <header class="medicine-card-header">
-              <div class="medicine-type-icon" aria-hidden="true">
-                <i class="fa-solid fa-syringe"></i>
-              </div>
-              <div>
-                <h3 id="med4-name" class="medicine-name">Insulin</h3>
-                <p class="medicine-type">Injection</p>
-              </div>
-              <span class="status-badge status-upcoming">
-                <i class="fa-regular fa-clock" aria-hidden="true"></i> Upcoming
-              </span>
-            </header>
-
-            <dl class="medicine-details">
-              <div class="detail-item">
-                <dt>Dosage</dt>
-                <dd>10 units</dd>
-              </div>
-              <div class="detail-item">
-                <dt>Time</dt>
-                <dd><time datetime="20:00">8:00 PM</time></dd>
-              </div>
-            </dl>
-
-            <div class="medicine-actions">
-              <button type="button" class="btn btn-primary">
-                <i class="fa-solid fa-check" aria-hidden="true"></i> Mark as Taken
-              </button>
-              <button type="button" class="btn btn-secondary">
-                <i class="fa-solid fa-forward" aria-hidden="true"></i> Skip
-              </button>
-              <button type="button" class="btn btn-text" aria-label="View details for Insulin">
-                <i class="fa-solid fa-circle-info" aria-hidden="true"></i> View Details
-              </button>
-            </div>
-          </article>
-        </li>
-      </ul>
+    <!-- Today's Summary -->
+    <section class="card summary-card" aria-labelledby="summary-heading">
+      <h2 id="summary-heading">Today&rsquo;s Summary</h2>
+      <div class="summary-grid">
+        <div class="summary-tile summary-tile-taken">
+          <span class="summary-tile-icon neu-surface"><i class="fa-solid fa-circle-check" aria-hidden="true"></i></span>
+          <span class="summary-tile-value" id="summary-taken-value">0</span>
+          <span class="summary-tile-label">Taken</span>
+        </div>
+        <div class="summary-tile summary-tile-upcoming">
+          <span class="summary-tile-icon neu-surface"><i class="fa-regular fa-clock" aria-hidden="true"></i></span>
+          <span class="summary-tile-value" id="summary-upcoming-value">0</span>
+          <span class="summary-tile-label">Upcoming</span>
+        </div>
+        <div class="summary-tile summary-tile-missed">
+          <span class="summary-tile-icon neu-surface"><i class="fa-solid fa-circle-xmark" aria-hidden="true"></i></span>
+          <span class="summary-tile-value" id="summary-missed-value">0</span>
+          <span class="summary-tile-label">Missed</span>
+        </div>
+      </div>
+      <p class="summary-message" id="summary-message">Loading your day&hellip;</p>
     </section>
 
-    <!-- 4. Next Reminder -->
+    <!-- Quick Statistics -->
+    <section class="card quick-stats-card" aria-labelledby="quick-stats-heading">
+      <h2 id="quick-stats-heading">Quick Statistics</h2>
+      <div class="quick-stats-grid">
+        <div class="stat-tile">
+          <span class="stat-tile-icon neu-surface"><i class="fa-solid fa-pills" aria-hidden="true"></i></span>
+          <div>
+            <span class="stat-tile-value" id="stat-total-value">0</span>
+            <span class="stat-tile-label">Total Medicines</span>
+          </div>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-tile-icon neu-surface"><i class="fa-solid fa-fire" aria-hidden="true"></i></span>
+          <div>
+            <span class="stat-tile-value" id="stat-streak-value">0</span>
+            <span class="stat-tile-label">Day Streak</span>
+          </div>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-tile-icon neu-surface"><i class="fa-solid fa-chart-line" aria-hidden="true"></i></span>
+          <div>
+            <span class="stat-tile-value" id="stat-adherence-value">0%</span>
+            <span class="stat-tile-label">Adherence</span>
+          </div>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-tile-icon neu-surface"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i></span>
+          <div>
+            <span class="stat-tile-value" id="stat-nextdose-value">&ndash;</span>
+            <span class="stat-tile-label">Next Dose In</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Today's Medicines -->
+    <section class="card medicines-card" aria-labelledby="todays-medicines-heading">
+      <h2 id="todays-medicines-heading">Today&rsquo;s Medicines</h2>
+
+      <div class="medicine-controls">
+        <div class="search-field">
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          <input type="search" id="medicine-search" placeholder="Search medicines by name or type&hellip;" aria-label="Search medicines" />
+        </div>
+
+        <div class="filter-chip-group" role="group" aria-label="Filter medicines" id="filter-chip-group">
+          <button type="button" class="filter-chip is-active" data-filter="today">Today</button>
+          <button type="button" class="filter-chip" data-filter="tomorrow">Tomorrow</button>
+          <button type="button" class="filter-chip" data-filter="taken">Taken</button>
+          <button type="button" class="filter-chip" data-filter="missed">Missed</button>
+          <button type="button" class="filter-chip" data-filter="upcoming">Upcoming</button>
+        </div>
+
+        <div class="sort-field">
+          <i class="fa-solid fa-arrow-down-wide-short" aria-hidden="true"></i>
+          <select id="medicine-sort" aria-label="Sort medicines">
+            <option value="time">Sort by Exact Time</option>
+            <option value="period">Sort by Time of Day (Morning &rarr; Night)</option>
+          </select>
+        </div>
+      </div>
+
+      <ul class="medicine-list" id="medicine-list" aria-live="polite"></ul>
+    </section>
+
+    <!-- Reminder Timeline -->
+    <section class="card timeline-card" aria-labelledby="timeline-heading">
+      <h2 id="timeline-heading">Reminder Timeline</h2>
+      <ol class="timeline-list" id="timeline-list"></ol>
+    </section>
+
+    <!-- Next Reminder -->
     <section class="card next-reminder-card" aria-labelledby="next-reminder-heading">
       <h2 id="next-reminder-heading">Next Reminder</h2>
 
@@ -237,8 +190,8 @@
         </span>
 
         <div class="next-reminder-details">
-          <p class="next-medicine-name">Metformin &mdash; 500 mg Tablet</p>
-          <p class="next-medicine-time">
+          <p class="next-medicine-name" id="next-medicine-name">Metformin &mdash; 500 mg Tablet</p>
+          <p class="next-medicine-time" id="next-medicine-time">
             Scheduled for <time datetime="08:00">8:00 AM</time>
           </p>
         </div>
@@ -250,56 +203,86 @@
           </span>
           <span class="countdown-separator" aria-hidden="true">:</span>
           <span class="countdown-segment">
-            <span class="countdown-value">42</span>
+            <span class="countdown-value">00</span>
             <span class="countdown-label">min</span>
           </span>
           <span class="countdown-separator" aria-hidden="true">:</span>
           <span class="countdown-segment">
-            <span class="countdown-value">18</span>
+            <span class="countdown-value">00</span>
             <span class="countdown-label">sec</span>
           </span>
         </div>
       </div>
     </section>
 
-    <!-- 5. Weekly Progress -->
+    <!-- Weekly Progress -->
     <section class="card progress-card" aria-labelledby="weekly-progress-heading">
       <h2 id="weekly-progress-heading">Weekly Progress</h2>
 
       <div class="progress-content">
-        <div
-          class="circular-progress"
-          role="img"
-          aria-label="Weekly adherence: 82 percent"
-        >
-          <span class="circular-progress-value">82%</span>
+        <div class="circular-progress" role="img" aria-label="Weekly adherence: 0 percent">
+          <span class="circular-progress-value">0%</span>
           <span class="circular-progress-caption">Adherence</span>
         </div>
 
         <dl class="progress-stats">
           <div class="stat-item">
             <dt><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Medicines Taken</dt>
-            <dd>23</dd>
+            <dd>0</dd>
           </div>
           <div class="stat-item">
             <dt><i class="fa-solid fa-circle-xmark" aria-hidden="true"></i> Medicines Missed</dt>
-            <dd>5</dd>
+            <dd>0</dd>
           </div>
           <div class="stat-item">
             <dt><i class="fa-solid fa-percent" aria-hidden="true"></i> Adherence Percentage</dt>
-            <dd>82%</dd>
+            <dd>0%</dd>
           </div>
         </dl>
       </div>
     </section>
+
+    <!-- Health Tips -->
+    <section class="card health-tip-card" aria-labelledby="health-tip-heading">
+      <h2 id="health-tip-heading">Health Tip</h2>
+      <div class="health-tip-body">
+        <span class="health-tip-icon" id="health-tip-icon" aria-hidden="true"><i class="fa-solid fa-lightbulb"></i></span>
+        <p id="health-tip-text">Take medicines at the same time every day to build a consistent habit.</p>
+      </div>
+      <button type="button" class="btn btn-secondary" id="health-tip-next">
+        <i class="fa-solid fa-rotate" aria-hidden="true"></i> Next Tip
+      </button>
+    </section>
+
+    <!-- Water Intake Widget -->
+    <section class="card water-card" aria-labelledby="water-heading">
+      <h2 id="water-heading">Water Intake</h2>
+      <div class="water-widget">
+        <div class="water-glass" role="img" aria-label="Water intake progress">
+          <div class="water-fill" id="water-fill" style="--fill: 0%"></div>
+          <i class="fa-solid fa-droplet water-glass-icon" aria-hidden="true"></i>
+        </div>
+        <div class="water-controls">
+          <p class="water-count"><span id="water-count-value">0</span> / <span id="water-goal-value">8</span> glasses</p>
+          <div class="water-buttons">
+            <button type="button" class="btn-icon" id="water-decrement" aria-label="Remove one glass of water">
+              <i class="fa-solid fa-minus" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="btn-icon btn-icon-primary" id="water-increment" aria-label="Add one glass of water">
+              <i class="fa-solid fa-plus" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <!-- 6. Add New Medicine Button (Floating Action Button) -->
-  <button type="button" class="fab" aria-label="Add new medicine">
+  <!-- Add New Medicine Button (Floating Action Button) -->
+  <button type="button" class="fab" id="add-medicine-fab" aria-label="Add new medicine">
     <i class="fa-solid fa-plus" aria-hidden="true"></i>
   </button>
 
-  <!-- 7. Bottom Navigation -->
+  <!-- Bottom Navigation -->
   <nav class="bottom-nav" aria-label="Primary">
     <ul class="bottom-nav-list">
       <li>
@@ -334,6 +317,184 @@
       </li>
     </ul>
   </nav>
+
+  <!-- Add / Edit Medicine Modal -->
+  <div class="modal-overlay" id="medicine-modal-overlay" hidden>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="medicine-modal-title">
+      <button type="button" class="modal-close" id="medicine-modal-close" aria-label="Close dialog">
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+      </button>
+      <h2 id="medicine-modal-title">Add New Medicine</h2>
+      <form id="medicine-form" novalidate>
+        <div class="form-field">
+          <label for="medicine-name-input">Medicine Name</label>
+          <input type="text" id="medicine-name-input" name="name" autocomplete="off" />
+          <span class="form-error" id="medicine-name-error"></span>
+        </div>
+        <div class="form-field">
+          <label for="medicine-type-select">Medicine Type</label>
+          <select id="medicine-type-select" name="type">
+            <option value="Tablet">Tablet</option>
+            <option value="Capsule">Capsule</option>
+            <option value="Syrup">Syrup</option>
+            <option value="Injection">Injection</option>
+          </select>
+          <span class="form-error" id="medicine-type-error"></span>
+        </div>
+        <div class="form-field">
+          <label for="medicine-dosage-input">Dosage</label>
+          <input type="text" id="medicine-dosage-input" name="dosage" placeholder="e.g. 500 mg" autocomplete="off" />
+          <span class="form-error" id="medicine-dosage-error"></span>
+        </div>
+        <div class="form-field">
+          <label for="medicine-time-input">Time</label>
+          <input type="time" id="medicine-time-input" name="time" />
+          <span class="form-error" id="medicine-time-error"></span>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary" id="medicine-form-submit">
+            <i class="fa-solid fa-check" aria-hidden="true"></i> <span>Add Medicine</span>
+          </button>
+          <button type="button" class="btn btn-text" id="medicine-form-cancel">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal (used for skip / delete) -->
+  <div class="modal-overlay" id="confirm-modal-overlay" hidden>
+    <div class="modal-panel modal-panel-sm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+      <h2 id="confirm-title">Are you sure?</h2>
+      <p id="confirm-message"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger" id="confirm-confirm-btn">Confirm</button>
+        <button type="button" class="btn btn-text" id="confirm-cancel-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Details Modal -->
+  <div class="modal-overlay" id="details-modal-overlay" hidden>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="details-name">
+      <button type="button" class="modal-close" id="details-modal-close" aria-label="Close dialog">
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+      </button>
+      <h2 id="details-name"></h2>
+      <p id="details-type" class="medicine-type"></p>
+      <dl class="medicine-details">
+        <div class="detail-item">
+          <dt>Dosage</dt>
+          <dd id="details-dosage"></dd>
+        </div>
+        <div class="detail-item">
+          <dt>Time</dt>
+          <dd id="details-time"></dd>
+        </div>
+      </dl>
+      <span class="status-badge" id="details-status-badge"></span>
+      <div class="medicine-actions">
+        <button type="button" class="btn btn-secondary" id="details-edit-btn">
+          <i class="fa-solid fa-pen" aria-hidden="true"></i> Edit
+        </button>
+        <button type="button" class="btn btn-danger" id="details-delete-btn">
+          <i class="fa-solid fa-trash" aria-hidden="true"></i> Delete
+        </button>
+        <button type="button" class="btn btn-text" id="details-close-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reminder Popup -->
+  <div class="modal-overlay" id="reminder-modal-overlay" hidden>
+    <div class="modal-panel modal-panel-sm" role="alertdialog" aria-modal="true" aria-labelledby="reminder-title">
+      <div class="reminder-popup-header">
+        <span class="reminder-popup-dot" aria-hidden="true"></span>
+        <h2 id="reminder-title">Reminder</h2>
+      </div>
+      <p id="reminder-message"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" id="reminder-taken-btn">
+          <i class="fa-solid fa-check" aria-hidden="true"></i> Mark as Taken
+        </button>
+        <button type="button" class="btn btn-secondary" id="reminder-dismiss-btn">Dismiss</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Templates (cloned by script.js; keeps markup out of JS) -->
+  <template id="medicine-card-template">
+    <li class="medicine-item">
+      <article class="medicine-card">
+        <header class="medicine-card-header">
+          <div class="medicine-type-icon" aria-hidden="true"><i></i></div>
+          <div>
+            <h3 class="medicine-name"></h3>
+            <p class="medicine-type"></p>
+          </div>
+          <span class="status-badge"><i aria-hidden="true"></i><span class="status-badge-label"></span></span>
+        </header>
+        <dl class="medicine-details">
+          <div class="detail-item">
+            <dt>Dosage</dt>
+            <dd class="detail-dosage"></dd>
+          </div>
+          <div class="detail-item">
+            <dt>Time</dt>
+            <dd><time class="detail-time"></time></dd>
+          </div>
+        </dl>
+        <div class="medicine-actions">
+          <button type="button" class="btn btn-primary btn-mark-taken">
+            <i class="fa-solid fa-check" aria-hidden="true"></i> Mark as Taken
+          </button>
+          <button type="button" class="btn btn-secondary btn-skip">
+            <i class="fa-solid fa-forward" aria-hidden="true"></i> Skip
+          </button>
+          <button type="button" class="btn btn-text btn-view-details">
+            <i class="fa-solid fa-circle-info" aria-hidden="true"></i> View Details
+          </button>
+        </div>
+      </article>
+    </li>
+  </template>
+
+  <template id="timeline-item-template">
+    <li class="timeline-item">
+      <span class="timeline-dot" aria-hidden="true"></span>
+      <div class="timeline-content">
+        <time class="timeline-time"></time>
+        <p class="timeline-name"></p>
+        <span class="status-badge timeline-status"><i aria-hidden="true"></i><span class="status-badge-label"></span></span>
+      </div>
+    </li>
+  </template>
+
+  <template id="toast-template">
+    <div class="toast" role="status">
+      <i class="toast-icon" aria-hidden="true"></i>
+      <span class="toast-message"></span>
+    </div>
+  </template>
+
+  <template id="empty-state-template">
+    <li class="empty-state">
+      <svg class="empty-state-illustration" viewBox="0 0 200 160" width="160" height="128" aria-hidden="true">
+        <ellipse cx="100" cy="146" rx="70" ry="10" fill="var(--color-primary-100)"></ellipse>
+        <rect x="60" y="30" width="80" height="100" rx="18" fill="var(--surface-card-solid)" stroke="var(--color-primary-200)" stroke-width="3"></rect>
+        <rect x="78" y="10" width="44" height="26" rx="8" fill="var(--color-primary-500)"></rect>
+        <rect x="60" y="70" width="80" height="14" fill="var(--color-primary-100)"></rect>
+        <circle cx="85" cy="105" r="8" fill="var(--color-primary-200)"></circle>
+        <circle cx="115" cy="105" r="8" fill="var(--color-accent-light)"></circle>
+        <circle cx="150" cy="40" r="22" fill="var(--color-taken)"></circle>
+        <path d="M141 40l6 6 12-13" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+      </svg>
+      <p class="empty-state-title">No medicines yet</p>
+      <p class="empty-state-subtitle">Add a medicine to start building your reminder schedule.</p>
+    </li>
+  </template>
 
   <script src="script.js"></script>
 </body>

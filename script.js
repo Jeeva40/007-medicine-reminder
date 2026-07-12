@@ -1,7 +1,8 @@
 /* =============================================================
    Medicine Reminder — Application Logic
-   Vanilla ES6+, no external libraries. Renders medicine cards,
-   manages reminders/notifications, and persists data locally.
+   Vanilla ES6+, no external libraries. Binds behavior to the
+   static markup/templates in index.html; all visuals live in
+   style.css — this file only manages data, state and DOM updates.
    ============================================================= */
 
 (function () {
@@ -11,7 +12,14 @@
      Constants & configuration
      ----------------------------------------------------------- */
   const STORAGE_KEY = 'medicineReminderData';
+  const THEME_STORAGE_KEY = 'medicineReminderTheme';
+  const ONBOARDING_STORAGE_KEY = 'medicineReminderOnboardingDismissed';
+  const STREAK_STORAGE_KEY = 'medicineReminderStreak';
+  const WATER_STORAGE_KEY = 'medicineReminderWater';
+
   const TOAST_DURATION_MS = 3500;
+  const WATER_GOAL = 8;
+  const WATER_MAX = 12;
   const MEDICINE_TYPES = ['Tablet', 'Capsule', 'Syrup', 'Injection'];
   const PERIOD_ORDER = ['Morning', 'Afternoon', 'Evening', 'Night'];
 
@@ -28,12 +36,21 @@
     missed: { label: 'Missed', badgeClass: 'status-missed', icon: 'fa-solid fa-xmark' },
   };
 
-  const TOAST_STYLES = {
-    success: { color: 'var(--color-taken)', icon: 'fa-solid fa-circle-check' },
-    error: { color: 'var(--color-missed)', icon: 'fa-solid fa-circle-xmark' },
-    warning: { color: 'var(--color-upcoming)', icon: 'fa-solid fa-triangle-exclamation' },
-    info: { color: 'var(--color-primary-600)', icon: 'fa-solid fa-circle-info' },
+  const TOAST_META = {
+    success: { icon: 'fa-solid fa-circle-check', className: 'toast-success' },
+    error: { icon: 'fa-solid fa-circle-xmark', className: 'toast-error' },
+    warning: { icon: 'fa-solid fa-triangle-exclamation', className: 'toast-warning' },
+    info: { icon: 'fa-solid fa-circle-info', className: 'toast-info' },
   };
+
+  const HEALTH_TIPS = [
+    { icon: 'fa-solid fa-clock', text: 'Take medicines at the same time every day to build a consistent habit.' },
+    { icon: 'fa-solid fa-glass-water', text: 'Drink a full glass of water with tablets and capsules to help them absorb properly.' },
+    { icon: 'fa-solid fa-utensils', text: 'Some medicines work best with food — check your prescription label to be sure.' },
+    { icon: 'fa-solid fa-bell', text: 'Enable notifications so you never miss a dose, even when the app is in the background.' },
+    { icon: 'fa-solid fa-box-archive', text: 'Store medicines in a cool, dry place away from direct sunlight and children.' },
+    { icon: 'fa-solid fa-calendar-check', text: 'Refill prescriptions a few days early so you never run out unexpectedly.' },
+  ];
 
   const DEFAULT_MEDICINES = [
     { id: 'seed-1', name: 'Metformin', type: 'Tablet', dosage: '500 mg', time: '08:00', status: 'upcoming' },
@@ -47,42 +64,49 @@
      ----------------------------------------------------------- */
   let medicines = [];
   let searchTerm = '';
-  let activeFilter = 'today'; // today | tomorrow | upcoming | taken | missed
-  let activeSort = 'time'; // time | period
+  let activeFilter = 'today';
+  let activeSort = 'time';
   let notificationsEnabled = false;
   let audioContext = null;
   let nextReminder = null; // { medicine, targetDate }
+  let editingMedicineId = null;
+  let detailsMedicineId = null;
+  let confirmHandler = null;
+  let healthTipIndex = 0;
+  let waterState = { date: '', count: 0 };
+  const openOverlayStack = [];
   const dom = {};
 
   /* -----------------------------------------------------------
-     Small DOM-building helper (keeps card/modal code readable,
-     never uses innerHTML for dynamic/user-supplied data).
+     Utilities
      ----------------------------------------------------------- */
-  function el(tag, options = {}, children = []) {
-    const node = document.createElement(tag);
-    Object.entries(options).forEach(([key, value]) => {
-      if (value == null) return;
-      if (key === 'class') node.className = value;
-      else if (key === 'text') node.textContent = value;
-      else if (key === 'style' && typeof value === 'object') Object.assign(node.style, value);
-      else if (key.startsWith('on') && typeof value === 'function') node.addEventListener(key.slice(2).toLowerCase(), value);
-      else node.setAttribute(key, value);
-    });
-    children.forEach((child) => {
-      if (child == null) return;
-      node.appendChild(typeof child === 'string' ? document.createTextNode(child) : child);
-    });
-    return node;
+  function pad2(value) {
+    return String(value).padStart(2, '0');
   }
 
-  /* -----------------------------------------------------------
-     Utilities: time formatting & parsing
-     ----------------------------------------------------------- */
+  function todayDateStr(date = new Date()) {
+    return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+  }
+
+  function dateDiffInDays(fromStr, toStr) {
+    const from = new Date(`${fromStr}T00:00:00`);
+    const to = new Date(`${toStr}T00:00:00`);
+    return Math.round((to - from) / 86400000);
+  }
+
   function formatTime12Hour(timeStr) {
     const [hours, minutes] = timeStr.split(':').map(Number);
     const period = hours >= 12 ? 'PM' : 'AM';
     const displayHour = hours % 12 === 0 ? 12 : hours % 12;
-    return `${displayHour}:${String(minutes).padStart(2, '0')} ${period}`;
+    return `${displayHour}:${pad2(minutes)} ${period}`;
+  }
+
+  function formatDurationShort(ms) {
+    if (ms == null || ms <= 0) return '–';
+    const totalMinutes = Math.floor(ms / 60000);
+    const hrs = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
   }
 
   function getTimePeriod(timeStr) {
@@ -110,6 +134,59 @@
       clearTimeout(timerId);
       timerId = setTimeout(() => fn(...args), delay);
     };
+  }
+
+  function cloneTemplate(templateEl) {
+    return templateEl.content.firstElementChild.cloneNode(true);
+  }
+
+  /* -----------------------------------------------------------
+     Theme (dark mode)
+     ----------------------------------------------------------- */
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    if (dom.themeToggle) {
+      const icon = dom.themeToggle.querySelector('i');
+      const isDark = theme === 'dark';
+      icon.className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+      dom.themeToggle.setAttribute('aria-pressed', String(isDark));
+      dom.themeToggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+    }
+  }
+
+  function initTheme() {
+    let theme;
+    try {
+      theme = localStorage.getItem(THEME_STORAGE_KEY);
+    } catch (error) {
+      console.error('Unable to read saved theme.', error);
+    }
+    if (!theme) {
+      theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    applyTheme(theme);
+  }
+
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, next);
+    } catch (error) {
+      console.error('Unable to save theme preference.', error);
+    }
+    showToast(next === 'dark' ? 'Dark mode enabled' : 'Light mode enabled', 'info');
+  }
+
+  /* -----------------------------------------------------------
+     Loading screen
+     ----------------------------------------------------------- */
+  function hideLoadingScreen() {
+    if (!dom.loadingScreen) return;
+    dom.loadingScreen.classList.add('is-hidden');
+    dom.loadingScreen.setAttribute('aria-hidden', 'true');
+    setTimeout(() => dom.loadingScreen.remove(), 600);
   }
 
   /* -----------------------------------------------------------
@@ -141,11 +218,47 @@
     }
   }
 
+  function loadWaterState() {
+    const today = todayDateStr();
+    try {
+      const raw = localStorage.getItem(WATER_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      waterState = parsed && parsed.date === today ? parsed : { date: today, count: 0 };
+    } catch (error) {
+      console.error('Failed to load water intake data.', error);
+      waterState = { date: today, count: 0 };
+    }
+  }
+
+  function saveWaterState() {
+    try {
+      localStorage.setItem(WATER_STORAGE_KEY, JSON.stringify(waterState));
+    } catch (error) {
+      console.error('Failed to save water intake data.', error);
+    }
+  }
+
+  function loadStreak() {
+    try {
+      const raw = localStorage.getItem(STREAK_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : { count: 0, lastCompletedDate: null };
+    } catch (error) {
+      console.error('Failed to load streak data.', error);
+      return { count: 0, lastCompletedDate: null };
+    }
+  }
+
+  function saveStreak(streak) {
+    try {
+      localStorage.setItem(STREAK_STORAGE_KEY, JSON.stringify(streak));
+    } catch (error) {
+      console.error('Failed to save streak data.', error);
+    }
+  }
+
   function persistAndRefresh() {
     saveMedicines();
-    renderMedicineList();
-    renderProgress();
-    refreshNextReminder();
+    renderAll();
   }
 
   /* -----------------------------------------------------------
@@ -157,13 +270,31 @@
     const upcoming = medicines.filter((m) => m.status === 'upcoming').length;
     const total = medicines.length;
     const adherence = total === 0 ? 0 : Math.round((taken / total) * 100);
-    return { taken, missed, upcoming, adherence };
+    return { taken, missed, upcoming, total, adherence };
   }
 
-  /* -----------------------------------------------------------
-     Number / circular-progress animations
-     ----------------------------------------------------------- */
+  function updateStreak(stats) {
+    const today = todayDateStr();
+    const streak = loadStreak();
+    let displayCount = streak.count;
+
+    if (streak.lastCompletedDate && dateDiffInDays(streak.lastCompletedDate, today) > 1) {
+      displayCount = 0;
+      saveStreak({ count: 0, lastCompletedDate: streak.lastCompletedDate });
+    }
+
+    if (stats.total > 0 && stats.adherence === 100 && streak.lastCompletedDate !== today) {
+      const gap = streak.lastCompletedDate ? dateDiffInDays(streak.lastCompletedDate, today) : null;
+      const newCount = gap === 1 ? streak.count + 1 : 1;
+      saveStreak({ count: newCount, lastCompletedDate: today });
+      displayCount = newCount;
+    }
+
+    return displayCount;
+  }
+
   function animateNumber(targetEl, toValue, suffix = '') {
+    if (!targetEl) return;
     const fromValue = parseInt(targetEl.textContent, 10) || 0;
     const duration = 600;
     const startTime = performance.now();
@@ -180,8 +311,7 @@
 
   function animateCircularProgress(toPercent) {
     if (!dom.circularProgress) return;
-    const currentText = dom.circularProgress.style.getPropertyValue('--progress');
-    const fromPercent = currentText ? parseInt(currentText, 10) : parseInt(dom.circularProgressValue.textContent, 10) || 0;
+    const fromPercent = parseInt(dom.circularProgressValue.textContent, 10) || 0;
     const duration = 700;
     const startTime = performance.now();
 
@@ -190,26 +320,78 @@
       const eased = 1 - Math.pow(1 - progress, 3);
       const current = Math.round(fromPercent + (toPercent - fromPercent) * eased);
       dom.circularProgress.style.setProperty('--progress', `${current}%`);
-      dom.circularProgress.style.background =
-        `conic-gradient(var(--color-primary-500) ${current}%, var(--color-primary-100) 0)`;
       if (progress < 1) requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
     dom.circularProgress.setAttribute('aria-label', `Weekly adherence: ${toPercent} percent`);
   }
 
-  function renderProgress() {
-    const stats = computeStats();
-    animateNumber(dom.statTakenValue, stats.taken);
-    animateNumber(dom.statMissedValue, stats.missed);
+  function renderSummary(stats) {
+    animateNumber(dom.summaryTakenValue, stats.taken);
+    animateNumber(dom.summaryUpcomingValue, stats.upcoming);
+    animateNumber(dom.summaryMissedValue, stats.missed);
+
+    if (dom.summaryMessage) {
+      if (stats.total === 0) {
+        dom.summaryMessage.textContent = 'Add a medicine to see your daily summary.';
+      } else if (stats.upcoming === 0) {
+        dom.summaryMessage.textContent = stats.missed === 0
+          ? 'Great job! All of today’s medicines are taken.'
+          : `You've completed today's plan with ${stats.missed} missed dose${stats.missed === 1 ? '' : 's'}.`;
+      } else {
+        dom.summaryMessage.textContent = `${stats.upcoming} medicine${stats.upcoming === 1 ? '' : 's'} still upcoming today.`;
+      }
+    }
+  }
+
+  function renderQuickStats(stats) {
+    animateNumber(dom.statTotalValue, stats.total);
+    animateNumber(dom.statStreakValue, updateStreak(stats));
     animateNumber(dom.statAdherenceValue, stats.adherence, '%');
+    if (dom.statNextdoseValue) {
+      dom.statNextdoseValue.textContent = nextReminder
+        ? formatDurationShort(nextReminder.targetDate - new Date())
+        : '–';
+    }
+  }
+
+  function renderProgress(stats) {
+    animateNumber(dom.progressTakenValue, stats.taken);
+    animateNumber(dom.progressMissedValue, stats.missed);
+    animateNumber(dom.progressAdherenceValue, stats.adherence, '%');
     animateNumber(dom.circularProgressValue, stats.adherence, '%');
     animateCircularProgress(stats.adherence);
   }
 
   /* -----------------------------------------------------------
-     Medicine list: filter, search, sort, render (with FLIP
-     "move card" animation between renders)
+     Onboarding
+     ----------------------------------------------------------- */
+  function isOnboardingDismissed() {
+    try {
+      return localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function dismissOnboarding() {
+    try {
+      localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+    } catch (error) {
+      console.error('Unable to save onboarding preference.', error);
+    }
+    if (dom.onboardingCard) dom.onboardingCard.hidden = true;
+  }
+
+  function evaluateOnboardingVisibility() {
+    if (!dom.onboardingCard) return;
+    const shouldShow = medicines.length === 0 && !isOnboardingDismissed();
+    dom.onboardingCard.hidden = !shouldShow;
+  }
+
+  /* -----------------------------------------------------------
+     Medicine list: filter, search, sort, render (FLIP "move
+     card" animation between renders)
      ----------------------------------------------------------- */
   function getFilteredSortedMedicines() {
     let list = [...medicines];
@@ -230,10 +412,8 @@
       case 'upcoming':
         list = list.filter((m) => m.status === 'upcoming');
         break;
-      case 'tomorrow':
-      case 'today':
       default:
-        break; // no status filtering
+        break; // today / tomorrow: no status filtering
     }
 
     if (activeSort === 'period') {
@@ -248,88 +428,56 @@
     return list;
   }
 
-  function buildEmptyState() {
-    return el('li', { style: { textAlign: 'center', padding: '32px 12px', color: 'var(--text-muted)' } }, [
-      el('i', { class: 'fa-regular fa-face-smile', style: { fontSize: '1.4rem', display: 'block', marginBottom: '8px' } }),
-      el('span', { text: 'No medicines match your search or filters.' }),
-    ]);
-  }
-
   function buildMedicineCard(medicine, { interactive = true, displayStatus = null } = {}) {
     const status = displayStatus || medicine.status;
     const meta = STATUS_META[status] || STATUS_META.upcoming;
-    const nameId = `${medicine.id}-name`;
+    const card = cloneTemplate(dom.medicineCardTemplate);
 
-    const typeIconWrap = el('div', { class: 'medicine-type-icon', 'aria-hidden': 'true' }, [
-      el('i', { class: TYPE_ICON[medicine.type] || 'fa-solid fa-pills' }),
-    ]);
+    card.id = `medicine-item-${medicine.id}`;
+    card.dataset.medicineId = medicine.id;
 
-    const nameBlock = el('div', {}, [
-      el('h3', { class: 'medicine-name', id: nameId, text: medicine.name }),
-      el('p', { class: 'medicine-type', text: medicine.type }),
-    ]);
+    card.querySelector('.medicine-type-icon i').className = TYPE_ICON[medicine.type] || 'fa-solid fa-pills';
+    card.querySelector('.medicine-name').textContent = medicine.name;
+    card.querySelector('.medicine-type').textContent = medicine.type;
 
-    const badge = el('span', { class: `status-badge ${meta.badgeClass}` }, [
-      el('i', { class: meta.icon, 'aria-hidden': 'true' }),
-      ` ${meta.label}`,
-    ]);
+    const badge = card.querySelector('.status-badge');
+    badge.className = `status-badge ${meta.badgeClass}`;
+    badge.querySelector('i').className = meta.icon;
+    badge.querySelector('.status-badge-label').textContent = ` ${meta.label}`;
 
-    const header = el('header', { class: 'medicine-card-header' }, [typeIconWrap, nameBlock, badge]);
-
-    const dosageItem = el('div', { class: 'detail-item' }, [
-      el('dt', { text: 'Dosage' }),
-      el('dd', { text: medicine.dosage }),
-    ]);
-
-    const timeDd = document.createElement('dd');
-    const timeTag = document.createElement('time');
+    card.querySelector('.detail-dosage').textContent = medicine.dosage;
+    const timeTag = card.querySelector('.detail-time');
     timeTag.setAttribute('datetime', medicine.time);
     timeTag.textContent = formatTime12Hour(medicine.time);
-    timeDd.appendChild(timeTag);
-    const timeItem = el('div', { class: 'detail-item' }, [el('dt', { text: 'Time' }), timeDd]);
 
-    const detailsList = el('dl', { class: 'medicine-details' }, [dosageItem, timeItem]);
+    const takenBtn = card.querySelector('.btn-mark-taken');
+    const skipBtn = card.querySelector('.btn-skip');
+    const detailsBtn = card.querySelector('.btn-view-details');
 
-    const takenBtn = el('button', {
-      type: 'button',
-      class: 'btn btn-primary',
-      onclick: () => markAsTaken(medicine.id),
-    }, [el('i', { class: 'fa-solid fa-check', 'aria-hidden': 'true' }), ' Mark as Taken']);
-
-    const skipBtn = el('button', {
-      type: 'button',
-      class: 'btn btn-secondary',
-      onclick: () => skipMedicine(medicine.id),
-    }, [el('i', { class: 'fa-solid fa-forward', 'aria-hidden': 'true' }), ' Skip']);
-
-    const detailsBtn = el('button', {
-      type: 'button',
-      class: 'btn btn-text',
-      'aria-label': `View details for ${medicine.name}`,
-      onclick: () => viewDetails(medicine.id),
-    }, [el('i', { class: 'fa-solid fa-circle-info', 'aria-hidden': 'true' }), ' View Details']);
+    takenBtn.addEventListener('click', () => markAsTaken(medicine.id));
+    skipBtn.addEventListener('click', () => skipMedicine(medicine.id));
+    detailsBtn.addEventListener('click', () => viewDetails(medicine.id));
+    detailsBtn.setAttribute('aria-label', `View details for ${medicine.name}`);
 
     if (!interactive || status !== 'upcoming') {
       takenBtn.disabled = true;
       skipBtn.disabled = true;
     }
 
-    const actions = el('div', { class: 'medicine-actions' }, [takenBtn, skipBtn, detailsBtn]);
+    return card;
+  }
 
-    const article = el('article', { class: 'medicine-card', 'aria-labelledby': nameId }, [header, detailsList, actions]);
-
-    return el('li', {
-      class: 'medicine-item',
-      id: `medicine-item-${medicine.id}`,
-      'data-medicine-id': medicine.id,
-    }, [article]);
+  function buildEmptyState(title, subtitle) {
+    const emptyState = cloneTemplate(dom.emptyStateTemplate);
+    emptyState.querySelector('.empty-state-title').textContent = title;
+    emptyState.querySelector('.empty-state-subtitle').textContent = subtitle;
+    return emptyState;
   }
 
   function renderMedicineList() {
     const listEl = dom.medicineList;
     if (!listEl) return;
 
-    // Capture current card positions for the FLIP "move card" animation.
     const previousRects = new Map();
     Array.from(listEl.children).forEach((child) => {
       const id = child.dataset && child.dataset.medicineId;
@@ -341,19 +489,20 @@
 
     listEl.textContent = '';
     if (items.length === 0) {
-      listEl.appendChild(buildEmptyState());
+      const message = medicines.length === 0
+        ? buildEmptyState('No medicines yet', 'Add a medicine to start building your reminder schedule.')
+        : buildEmptyState('No matches found', 'Try a different search term or filter.');
+      listEl.appendChild(message);
       return;
     }
 
     items.forEach((medicine) => {
-      const card = buildMedicineCard(medicine, {
+      listEl.appendChild(buildMedicineCard(medicine, {
         interactive: !isTomorrowPreview,
         displayStatus: isTomorrowPreview ? 'upcoming' : null,
-      });
-      listEl.appendChild(card);
+      }));
     });
 
-    // Animate cards into their new positions / fade in new cards.
     Array.from(listEl.children).forEach((child) => {
       const id = child.dataset && child.dataset.medicineId;
       if (!id) return;
@@ -378,7 +527,41 @@
   }
 
   /* -----------------------------------------------------------
-     Success / press animations
+     Reminder timeline (full-day chronological view)
+     ----------------------------------------------------------- */
+  function renderTimeline() {
+    const listEl = dom.timelineList;
+    if (!listEl) return;
+    listEl.textContent = '';
+
+    if (medicines.length === 0) {
+      listEl.appendChild(buildEmptyState('Nothing scheduled', 'Your reminder timeline will appear here.'));
+      return;
+    }
+
+    const sorted = [...medicines].sort((a, b) => a.time.localeCompare(b.time));
+    sorted.forEach((medicine) => {
+      const item = cloneTemplate(dom.timelineItemTemplate);
+      const meta = STATUS_META[medicine.status];
+      item.dataset.status = medicine.status;
+
+      const timeTag = item.querySelector('.timeline-time');
+      timeTag.setAttribute('datetime', medicine.time);
+      timeTag.textContent = formatTime12Hour(medicine.time);
+
+      item.querySelector('.timeline-name').textContent = `${medicine.name} (${medicine.dosage})`;
+
+      const badge = item.querySelector('.timeline-status');
+      badge.classList.add(meta.badgeClass);
+      badge.querySelector('i').className = meta.icon;
+      badge.querySelector('.status-badge-label').textContent = ` ${meta.label}`;
+
+      listEl.appendChild(item);
+    });
+  }
+
+  /* -----------------------------------------------------------
+     Success animation for status changes
      ----------------------------------------------------------- */
   function playStatusChangeAnimation(cardId, glowColorVar) {
     const cardEl = document.getElementById(`medicine-item-${cardId}`);
@@ -396,7 +579,7 @@
 
   function attachButtonPressAnimation() {
     document.addEventListener('click', (event) => {
-      const button = event.target.closest('.btn, .fab, .icon-button');
+      const button = event.target.closest('.btn, .fab, .icon-button, .btn-icon, .filter-chip');
       if (!button) return;
       button.animate(
         [{ transform: 'scale(1)' }, { transform: 'scale(0.93)' }, { transform: 'scale(1)' }],
@@ -406,7 +589,7 @@
   }
 
   /* -----------------------------------------------------------
-     Medicine actions: mark as taken / skip / view / delete
+     Medicine actions
      ----------------------------------------------------------- */
   function markAsTaken(id) {
     const medicine = medicines.find((m) => m.id === id);
@@ -427,7 +610,6 @@
       title: 'Skip this medicine?',
       message: `Are you sure you want to skip ${medicine.name}? It will be marked as missed.`,
       confirmLabel: 'Skip It',
-      confirmClass: 'btn-danger',
       onConfirm: () => {
         playStatusChangeAnimation(id, 'var(--color-missed-bg)').then(() => {
           medicine.status = 'missed';
@@ -438,7 +620,7 @@
     });
   }
 
-  function deleteMedicine(id, closeAfter) {
+  function deleteMedicine(id) {
     const medicine = medicines.find((m) => m.id === id);
     if (!medicine) return;
 
@@ -446,12 +628,11 @@
       title: 'Delete medicine?',
       message: `This will permanently remove ${medicine.name} from your list.`,
       confirmLabel: 'Delete',
-      confirmClass: 'btn-danger',
       onConfirm: () => {
         medicines = medicines.filter((m) => m.id !== id);
         persistAndRefresh();
         showToast('Medicine Deleted', 'error');
-        if (closeAfter) closeAfter();
+        closeModal(dom.detailsModalOverlay);
       },
     });
   }
@@ -459,39 +640,19 @@
   function viewDetails(id) {
     const medicine = medicines.find((m) => m.id === id);
     if (!medicine) return;
+    detailsMedicineId = id;
 
     const meta = STATUS_META[medicine.status];
-    const panel = modalPanel([
-      el('h2', { text: medicine.name, style: { marginBottom: '4px' } }),
-      el('p', { text: medicine.type, style: { color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '0.05em' } }),
-      el('dl', { class: 'medicine-details', style: { marginBottom: '16px' } }, [
-        el('div', { class: 'detail-item' }, [el('dt', { text: 'Dosage' }), el('dd', { text: medicine.dosage })]),
-        el('div', { class: 'detail-item' }, [el('dt', { text: 'Time' }), el('dd', { text: formatTime12Hour(medicine.time) })]),
-      ]),
-      el('span', { class: `status-badge ${meta.badgeClass}`, style: { marginBottom: '20px', display: 'inline-flex' } }, [
-        el('i', { class: meta.icon, 'aria-hidden': 'true' }),
-        ` ${meta.label}`,
-      ]),
-      el('div', { class: 'medicine-actions', style: { marginTop: '12px' } }, [
-        el('button', {
-          type: 'button',
-          class: 'btn btn-secondary',
-          onclick: () => openMedicineForm(medicine, () => closeOverlay(overlay)),
-        }, [el('i', { class: 'fa-solid fa-pen', 'aria-hidden': 'true' }), ' Edit']),
-        el('button', {
-          type: 'button',
-          class: 'btn btn-danger',
-          onclick: () => deleteMedicine(medicine.id, () => closeOverlay(overlay)),
-        }, [el('i', { class: 'fa-solid fa-trash', 'aria-hidden': 'true' }), ' Delete']),
-        el('button', {
-          type: 'button',
-          class: 'btn btn-text',
-          onclick: () => closeOverlay(overlay),
-        }, ['Close']),
-      ]),
-    ]);
+    dom.detailsName.textContent = medicine.name;
+    dom.detailsType.textContent = medicine.type;
+    dom.detailsDosage.textContent = medicine.dosage;
+    dom.detailsTime.textContent = formatTime12Hour(medicine.time);
+    dom.detailsStatusBadge.className = `status-badge ${meta.badgeClass}`;
+    dom.detailsStatusBadge.innerHTML = '';
+    dom.detailsStatusBadge.appendChild(Object.assign(document.createElement('i'), { className: meta.icon, ariaHidden: 'true' }));
+    dom.detailsStatusBadge.appendChild(document.createTextNode(` ${meta.label}`));
 
-    const overlay = createOverlay(panel);
+    openModal(dom.detailsModalOverlay);
   }
 
   /* -----------------------------------------------------------
@@ -543,6 +704,7 @@
     if (diffMs <= 0) {
       triggerReminder(nextReminder.medicine);
       refreshNextReminder();
+      renderQuickStats(computeStats());
       return;
     }
 
@@ -551,9 +713,11 @@
     const mins = Math.floor((totalSeconds % 3600) / 60);
     const secs = totalSeconds % 60;
     const [hrsEl, minsEl, secsEl] = dom.countdownValues;
-    if (hrsEl) hrsEl.textContent = String(hrs).padStart(2, '0');
-    if (minsEl) minsEl.textContent = String(mins).padStart(2, '0');
-    if (secsEl) secsEl.textContent = String(secs).padStart(2, '0');
+    if (hrsEl) hrsEl.textContent = pad2(hrs);
+    if (minsEl) minsEl.textContent = pad2(mins);
+    if (secsEl) secsEl.textContent = pad2(secs);
+
+    if (dom.statNextdoseValue) dom.statNextdoseValue.textContent = formatDurationShort(diffMs);
   }
 
   function startCountdownTimer() {
@@ -572,42 +736,31 @@
   }
 
   function showReminderPopup(medicine) {
-    let overlay;
-    const panel = modalPanel([
-      el('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' } }, [
-        el('span', {
-          style: {
-            width: '14px', height: '14px', borderRadius: '50%',
-            background: 'var(--color-upcoming)', display: 'inline-block',
-          },
-        }),
-        el('h2', { text: 'Reminder', style: { margin: '0' } }),
-      ]),
-      el('p', { text: `It's time to take ${medicine.name} (${medicine.dosage}, ${medicine.type}).`, style: { marginBottom: '20px', color: 'var(--text-secondary)' } }),
-      el('div', { class: 'medicine-actions' }, [
-        el('button', {
-          type: 'button',
-          class: 'btn btn-primary',
-          onclick: () => {
-            markAsTaken(medicine.id);
-            showToast('Reminder Completed', 'success');
-            closeOverlay(overlay);
-          },
-        }, [el('i', { class: 'fa-solid fa-check', 'aria-hidden': 'true' }), ' Mark as Taken']),
-        el('button', {
-          type: 'button',
-          class: 'btn btn-secondary',
-          onclick: () => closeOverlay(overlay),
-        }, ['Dismiss']),
-      ]),
-    ]);
-    overlay = createOverlay(panel);
+    dom.reminderMessage.textContent = `It's time to take ${medicine.name} (${medicine.dosage}, ${medicine.type}).`;
+
+    const onTaken = () => {
+      markAsTaken(medicine.id);
+      showToast('Reminder Completed', 'success');
+      closeModal(dom.reminderModalOverlay);
+      cleanup();
+    };
+    const onDismiss = () => {
+      closeModal(dom.reminderModalOverlay);
+      cleanup();
+    };
+    function cleanup() {
+      dom.reminderTakenBtn.removeEventListener('click', onTaken);
+      dom.reminderDismissBtn.removeEventListener('click', onDismiss);
+    }
+
+    dom.reminderTakenBtn.addEventListener('click', onTaken);
+    dom.reminderDismissBtn.addEventListener('click', onDismiss);
+    openModal(dom.reminderModalOverlay);
   }
 
   function updateNotificationIndicator() {
-    if (dom.notificationDot) {
-      dom.notificationDot.style.display = notificationsEnabled ? 'block' : 'none';
-    }
+    if (dom.notificationDot) dom.notificationDot.hidden = !notificationsEnabled;
+    if (dom.notificationToggle) dom.notificationToggle.setAttribute('aria-pressed', String(notificationsEnabled));
   }
 
   function requestNotificationPermission() {
@@ -676,329 +829,355 @@
   /* -----------------------------------------------------------
      Toast notifications
      ----------------------------------------------------------- */
-  function ensureToastContainer() {
-    if (!dom.toastContainer) {
-      dom.toastContainer = el('div', {
-        'aria-live': 'polite',
-        'aria-atomic': 'true',
-        style: {
-          position: 'fixed', top: '84px', right: '20px', display: 'flex',
-          flexDirection: 'column', gap: '10px', zIndex: '200', maxWidth: '320px',
-        },
-      });
-      document.body.appendChild(dom.toastContainer);
-    }
-    return dom.toastContainer;
-  }
-
   function showToast(message, type = 'info') {
-    const container = ensureToastContainer();
-    const styleMeta = TOAST_STYLES[type] || TOAST_STYLES.info;
+    const meta = TOAST_META[type] || TOAST_META.info;
+    const toast = cloneTemplate(dom.toastTemplate);
+    toast.classList.add(meta.className);
+    toast.querySelector('.toast-icon').className = `toast-icon ${meta.icon}`;
+    toast.querySelector('.toast-message').textContent = message;
 
-    const toast = el('div', {
-      role: 'status',
-      style: {
-        display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px',
-        borderRadius: '12px', background: 'var(--surface-card-solid)', color: 'var(--text-primary)',
-        boxShadow: 'var(--shadow-lg)', borderLeft: `4px solid ${styleMeta.color}`,
-        fontSize: '0.85rem', fontWeight: '600',
-      },
-    }, [
-      el('i', { class: styleMeta.icon, style: { color: styleMeta.color } }),
-      el('span', { text: message }),
-    ]);
-
-    container.appendChild(toast);
-    toast.animate(
-      [{ transform: 'translateX(30px)', opacity: 0 }, { transform: 'translateX(0)', opacity: 1 }],
-      { duration: 250, easing: 'ease-out', fill: 'forwards' }
-    );
+    dom.toastContainer.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('is-visible'));
 
     setTimeout(() => {
-      const exitAnimation = toast.animate(
-        [{ transform: 'translateX(0)', opacity: 1 }, { transform: 'translateX(30px)', opacity: 0 }],
-        { duration: 220, easing: 'ease-in', fill: 'forwards' }
-      );
-      exitAnimation.onfinish = () => toast.remove();
+      toast.classList.remove('is-visible');
+      toast.addEventListener('transitionend', () => toast.remove(), { once: true });
     }, TOAST_DURATION_MS);
   }
 
   /* -----------------------------------------------------------
-     Generic modal overlay
+     Generic modal open/close (CSS-driven transitions)
      ----------------------------------------------------------- */
-  function modalPanel(children, extraStyle = {}) {
-    return el('div', {
-      style: Object.assign({
-        background: 'var(--surface-card-solid)', borderRadius: 'var(--radius-lg)',
-        padding: '28px', maxWidth: '440px', width: '100%', boxShadow: 'var(--shadow-lg)',
-        maxHeight: '86vh', overflowY: 'auto',
-      }, extraStyle),
-    }, children);
+  function openModal(overlay) {
+    if (!overlay) return;
+    overlay.hidden = false;
+    void overlay.offsetWidth; // force reflow so the transition plays
+    overlay.classList.add('is-open');
+    openOverlayStack.push(overlay);
   }
 
-  function createOverlay(contentEl) {
-    const overlay = el('div', {
-      role: 'presentation',
-      style: {
-        position: 'fixed', inset: '0', background: 'rgba(15, 36, 56, 0.45)',
-        backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center',
-        justifyContent: 'center', zIndex: '150', padding: '20px',
-      },
-    }, [contentEl]);
-
-    function escHandler(event) {
-      if (event.key === 'Escape') closeOverlay(overlay);
-    }
-    overlay.addEventListener('click', (event) => { if (event.target === overlay) closeOverlay(overlay); });
-    document.addEventListener('keydown', escHandler);
-    overlay._escHandler = escHandler;
-
-    document.body.appendChild(overlay);
-    overlay.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, fill: 'forwards' });
-    contentEl.animate(
-      [{ transform: 'translateY(16px) scale(0.97)', opacity: 0 }, { transform: 'translateY(0) scale(1)', opacity: 1 }],
-      { duration: 250, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' }
-    );
-    return overlay;
+  function closeModal(overlay) {
+    if (!overlay || overlay.hidden) return;
+    overlay.classList.remove('is-open');
+    const onEnd = (event) => {
+      if (event.target !== overlay) return;
+      overlay.hidden = true;
+      overlay.removeEventListener('transitionend', onEnd);
+    };
+    overlay.addEventListener('transitionend', onEnd);
+    const index = openOverlayStack.indexOf(overlay);
+    if (index !== -1) openOverlayStack.splice(index, 1);
   }
 
-  function closeOverlay(overlay) {
-    if (!overlay || !overlay.isConnected) return;
-    document.removeEventListener('keydown', overlay._escHandler);
-    const animation = overlay.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, fill: 'forwards' });
-    animation.onfinish = () => overlay.remove();
+  function showConfirm({ title, message, confirmLabel = 'Confirm', onConfirm }) {
+    dom.confirmTitle.textContent = title;
+    dom.confirmMessage.textContent = message;
+    dom.confirmConfirmBtn.textContent = confirmLabel;
+    confirmHandler = onConfirm;
+    openModal(dom.confirmModalOverlay);
   }
 
-  function showConfirm({ title, message, confirmLabel = 'Confirm', confirmClass = 'btn-primary', onConfirm }) {
-    let overlay;
-    const panel = modalPanel([
-      el('h2', { text: title, style: { marginBottom: '10px' } }),
-      el('p', { text: message, style: { color: 'var(--text-secondary)', marginBottom: '22px' } }),
-      el('div', { class: 'medicine-actions' }, [
-        el('button', {
-          type: 'button',
-          class: `btn ${confirmClass}`,
-          onclick: () => { onConfirm(); closeOverlay(overlay); },
-        }, [confirmLabel]),
-        el('button', { type: 'button', class: 'btn btn-text', onclick: () => closeOverlay(overlay) }, ['Cancel']),
-      ]),
-    ]);
-    overlay = createOverlay(panel);
+  function wireModalDismissals() {
+    document.querySelectorAll('.modal-overlay').forEach((overlay) => {
+      overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) closeModal(overlay);
+      });
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && openOverlayStack.length > 0) {
+        closeModal(openOverlayStack[openOverlayStack.length - 1]);
+      }
+    });
   }
 
   /* -----------------------------------------------------------
-     Add / edit medicine form modal
+     Add / edit medicine form
      ----------------------------------------------------------- */
-  function buildFormField(labelText, inputEl, errorId) {
-    const label = el('label', { style: { display: 'block', fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }, text: labelText });
-    const errorSpan = el('span', { id: errorId, style: { display: 'block', color: 'var(--color-missed)', fontSize: '0.75rem', marginTop: '4px', minHeight: '14px' } });
-    Object.assign(inputEl.style, {
-      width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)',
-      border: '1px solid var(--surface-border)', background: 'var(--color-primary-50)',
-      color: 'var(--text-primary)', fontSize: '0.9rem', fontFamily: 'inherit',
-    });
-    return el('div', { style: { marginBottom: '16px' } }, [label, inputEl, errorSpan]);
+  function setFieldError(errorEl, message) {
+    if (errorEl) errorEl.textContent = message || '';
   }
 
-  function openMedicineForm(existingMedicine = null, onClosed) {
-    let overlay;
+  function openMedicineForm(existingMedicine = null) {
+    editingMedicineId = existingMedicine ? existingMedicine.id : null;
     const isEdit = Boolean(existingMedicine);
 
-    const nameInput = el('input', { type: 'text', value: isEdit ? existingMedicine.name : '', 'aria-label': 'Medicine name' });
-    const typeSelect = el('select', { 'aria-label': 'Medicine type' },
-      MEDICINE_TYPES.map((type) => el('option', { value: type, text: type }))
-    );
-    if (isEdit) typeSelect.value = existingMedicine.type;
+    dom.medicineModalTitle.textContent = isEdit ? 'Edit Medicine' : 'Add New Medicine';
+    dom.medicineFormSubmit.querySelector('span').textContent = isEdit ? 'Save Changes' : 'Add Medicine';
 
-    const dosageInput = el('input', { type: 'text', value: isEdit ? existingMedicine.dosage : '', placeholder: 'e.g. 500 mg', 'aria-label': 'Dosage' });
-    const timeInput = el('input', { type: 'time', value: isEdit ? existingMedicine.time : '', 'aria-label': 'Reminder time' });
+    dom.medicineNameInput.value = isEdit ? existingMedicine.name : '';
+    dom.medicineTypeSelect.value = isEdit ? existingMedicine.type : MEDICINE_TYPES[0];
+    dom.medicineDosageInput.value = isEdit ? existingMedicine.dosage : '';
+    dom.medicineTimeInput.value = isEdit ? existingMedicine.time : '';
 
-    const nameField = buildFormField('Medicine Name', nameInput, 'error-name');
-    const typeField = buildFormField('Medicine Type', typeSelect, 'error-type');
-    const dosageField = buildFormField('Dosage', dosageInput, 'error-dosage');
-    const timeField = buildFormField('Time', timeInput, 'error-time');
+    [dom.medicineNameError, dom.medicineTypeError, dom.medicineDosageError, dom.medicineTimeError].forEach((el) => setFieldError(el, ''));
 
-    function showFieldError(field, message) {
-      const errorSpan = field.querySelector('span');
-      if (errorSpan) errorSpan.textContent = message || '';
+    openModal(dom.medicineModalOverlay);
+    dom.medicineNameInput.focus();
+  }
+
+  function handleMedicineFormSubmit(event) {
+    event.preventDefault();
+
+    const name = dom.medicineNameInput.value.trim();
+    const dosage = dom.medicineDosageInput.value.trim();
+    const time = dom.medicineTimeInput.value.trim();
+    const type = dom.medicineTypeSelect.value;
+    let hasError = false;
+
+    setFieldError(dom.medicineNameError, '');
+    setFieldError(dom.medicineDosageError, '');
+    setFieldError(dom.medicineTimeError, '');
+    setFieldError(dom.medicineTypeError, '');
+
+    if (name.length < 2) { setFieldError(dom.medicineNameError, 'Please enter a valid name (2+ characters).'); hasError = true; }
+    if (!dosage) { setFieldError(dom.medicineDosageError, 'Dosage is required.'); hasError = true; }
+    if (!/^\d{2}:\d{2}$/.test(time)) { setFieldError(dom.medicineTimeError, 'Please choose a valid time.'); hasError = true; }
+    if (!MEDICINE_TYPES.includes(type)) { setFieldError(dom.medicineTypeError, 'Please choose a medicine type.'); hasError = true; }
+
+    if (hasError) {
+      const panel = dom.medicineModalOverlay.querySelector('.modal-panel');
+      panel.classList.add('is-shaking');
+      panel.addEventListener('animationend', () => panel.classList.remove('is-shaking'), { once: true });
+      return;
     }
 
-    function handleSubmit(event) {
-      event.preventDefault();
-      const name = nameInput.value.trim();
-      const dosage = dosageInput.value.trim();
-      const time = timeInput.value.trim();
-      const type = typeSelect.value;
-      let hasError = false;
-
-      showFieldError(nameField, '');
-      showFieldError(dosageField, '');
-      showFieldError(timeField, '');
-      showFieldError(typeField, '');
-
-      if (name.length < 2) { showFieldError(nameField, 'Please enter a valid name (2+ characters).'); hasError = true; }
-      if (!dosage) { showFieldError(dosageField, 'Dosage is required.'); hasError = true; }
-      if (!/^\d{2}:\d{2}$/.test(time)) { showFieldError(timeField, 'Please choose a valid time.'); hasError = true; }
-      if (!MEDICINE_TYPES.includes(type)) { showFieldError(typeField, 'Please choose a medicine type.'); hasError = true; }
-
-      if (hasError) {
-        formPanel.animate(
-          [{ transform: 'translateX(0)' }, { transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'translateX(0)' }],
-          { duration: 300, easing: 'ease-in-out' }
-        );
-        return;
-      }
-
-      if (isEdit) {
-        Object.assign(existingMedicine, { name, dosage, time, type });
-        showToast('Medicine Updated', 'success');
-      } else {
-        medicines.push({ id: generateId(), name, dosage, time, type, status: 'upcoming' });
-        showToast('Medicine Added', 'success');
-      }
-
-      persistAndRefresh();
-      closeOverlay(overlay);
-      if (onClosed) onClosed();
+    if (editingMedicineId) {
+      const medicine = medicines.find((m) => m.id === editingMedicineId);
+      Object.assign(medicine, { name, dosage, time, type });
+      showToast('Medicine Updated', 'success');
+    } else {
+      medicines.push({ id: generateId(), name, dosage, time, type, status: 'upcoming' });
+      showToast('Medicine Added', 'success');
     }
 
-    const form = el('form', { onsubmit: handleSubmit }, [
-      el('h2', { text: isEdit ? 'Edit Medicine' : 'Add New Medicine', style: { marginBottom: '18px' } }),
-      nameField,
-      typeField,
-      dosageField,
-      timeField,
-      el('div', { class: 'medicine-actions', style: { marginTop: '6px' } }, [
-        el('button', { type: 'submit', class: 'btn btn-primary' }, [el('i', { class: 'fa-solid fa-check', 'aria-hidden': 'true' }), isEdit ? ' Save Changes' : ' Add Medicine']),
-        el('button', { type: 'button', class: 'btn btn-text', onclick: () => { closeOverlay(overlay); if (onClosed) onClosed(); } }, ['Cancel']),
-      ]),
-    ]);
-
-    const formPanel = modalPanel([form]);
-    overlay = createOverlay(formPanel);
-    nameInput.focus();
+    persistAndRefresh();
+    closeModal(dom.medicineModalOverlay);
   }
 
   /* -----------------------------------------------------------
-     Search / filter / sort controls
+     Health tip card
      ----------------------------------------------------------- */
-  function buildControlsBar() {
-    const searchInput = el('input', {
-      type: 'search',
-      placeholder: 'Search medicines by name or type...',
-      'aria-label': 'Search medicines',
-      style: {
-        width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-pill)',
-        border: '1px solid var(--surface-border)', background: 'var(--color-primary-50)',
-        fontSize: '0.88rem', fontFamily: 'inherit', color: 'var(--text-primary)',
-      },
-      oninput: debounce((event) => {
-        searchTerm = event.target.value.trim().toLowerCase();
-        renderMedicineList();
-      }, 200),
-    });
+  function renderHealthTip() {
+    const tip = HEALTH_TIPS[healthTipIndex];
+    dom.healthTipIcon.querySelector('i').className = tip.icon;
+    dom.healthTipText.textContent = tip.text;
+  }
 
-    const filters = [
-      { value: 'today', label: 'Today' },
-      { value: 'tomorrow', label: 'Tomorrow' },
-      { value: 'taken', label: 'Taken' },
-      { value: 'missed', label: 'Missed' },
-      { value: 'upcoming', label: 'Upcoming' },
-    ];
+  function showNextHealthTip() {
+    healthTipIndex = (healthTipIndex + 1) % HEALTH_TIPS.length;
+    dom.healthTipText.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: 'ease-out' });
+    renderHealthTip();
+  }
 
-    const filterButtons = filters.map((filterOption) => {
-      const button = el('button', {
-        type: 'button',
-        style: {
-          padding: '7px 14px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--surface-border)',
-          background: filterOption.value === activeFilter ? 'var(--color-primary-600)' : 'var(--surface-card-solid)',
-          color: filterOption.value === activeFilter ? '#fff' : 'var(--text-secondary)',
-          fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer',
-        },
-        text: filterOption.label,
-        onclick: () => {
-          activeFilter = filterOption.value;
-          Array.from(filterRow.children).forEach((btn, index) => {
-            const isActive = filters[index].value === activeFilter;
-            btn.style.background = isActive ? 'var(--color-primary-600)' : 'var(--surface-card-solid)';
-            btn.style.color = isActive ? '#fff' : 'var(--text-secondary)';
-          });
-          renderMedicineList();
-        },
-      });
-      return button;
-    });
+  /* -----------------------------------------------------------
+     Water intake widget
+     ----------------------------------------------------------- */
+  function renderWaterWidget() {
+    const percent = Math.min(100, Math.round((waterState.count / WATER_GOAL) * 100));
+    dom.waterFill.style.setProperty('--fill', `${percent}%`);
+    dom.waterCountValue.textContent = waterState.count;
+    dom.waterDecrement.disabled = waterState.count <= 0;
+    dom.waterIncrement.disabled = waterState.count >= WATER_MAX;
+  }
 
-    const filterRow = el('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '8px', margin: '12px 0' } }, filterButtons);
-
-    const sortSelect = el('select', {
-      'aria-label': 'Sort medicines',
-      style: {
-        padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-border)',
-        background: 'var(--surface-card-solid)', color: 'var(--text-primary)', fontSize: '0.82rem',
-      },
-      onchange: (event) => { activeSort = event.target.value; renderMedicineList(); },
-    }, [
-      el('option', { value: 'time', text: 'Sort by Exact Time' }),
-      el('option', { value: 'period', text: 'Sort by Time of Day (Morning → Night)' }),
-    ]);
-
-    const sortRow = el('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' } }, [
-      el('i', { class: 'fa-solid fa-arrow-down-wide-short', 'aria-hidden': 'true', style: { color: 'var(--text-muted)' } }),
-      sortSelect,
-    ]);
-
-    return el('div', {}, [searchInput, filterRow, sortRow]);
+  function changeWaterCount(delta) {
+    const nextCount = waterState.count + delta;
+    if (nextCount < 0 || nextCount > WATER_MAX) return;
+    waterState.count = nextCount;
+    waterState.date = todayDateStr();
+    saveWaterState();
+    renderWaterWidget();
+    if (delta > 0 && waterState.count === WATER_GOAL) {
+      showToast('Daily water goal reached!', 'success');
+    }
   }
 
   /* -----------------------------------------------------------
      DOM caching & wiring
      ----------------------------------------------------------- */
   function cacheDom() {
-    dom.medicinesCard = document.querySelector('.medicines-card');
-    dom.medicinesHeading = document.getElementById('todays-medicines-heading');
-    dom.medicineList = document.querySelector('.medicine-list');
-    dom.fab = document.querySelector('.fab');
-    dom.bellButton = document.querySelector('.icon-button[aria-label="View notifications"]');
-    dom.notificationDot = document.querySelector('.notification-dot');
+    dom.loadingScreen = document.getElementById('loading-screen');
+    dom.themeToggle = document.getElementById('theme-toggle');
+    dom.notificationToggle = document.getElementById('notification-toggle');
+    dom.notificationDot = document.getElementById('notification-dot');
 
-    dom.nextMedicineName = document.querySelector('.next-medicine-name');
-    dom.nextMedicineTime = document.querySelector('.next-medicine-time');
+    dom.onboardingCard = document.getElementById('onboarding-card');
+    dom.onboardingDismiss = document.getElementById('onboarding-dismiss');
+    dom.onboardingCta = document.getElementById('onboarding-cta');
+
+    dom.summaryTakenValue = document.getElementById('summary-taken-value');
+    dom.summaryUpcomingValue = document.getElementById('summary-upcoming-value');
+    dom.summaryMissedValue = document.getElementById('summary-missed-value');
+    dom.summaryMessage = document.getElementById('summary-message');
+
+    dom.statTotalValue = document.getElementById('stat-total-value');
+    dom.statStreakValue = document.getElementById('stat-streak-value');
+    dom.statAdherenceValue = document.getElementById('stat-adherence-value');
+    dom.statNextdoseValue = document.getElementById('stat-nextdose-value');
+
+    dom.medicineSearch = document.getElementById('medicine-search');
+    dom.filterChipGroup = document.getElementById('filter-chip-group');
+    dom.medicineSort = document.getElementById('medicine-sort');
+    dom.medicineList = document.getElementById('medicine-list');
+    dom.timelineList = document.getElementById('timeline-list');
+
+    dom.nextMedicineName = document.getElementById('next-medicine-name');
+    dom.nextMedicineTime = document.getElementById('next-medicine-time');
     dom.countdownValues = Array.from(document.querySelectorAll('.countdown-value'));
 
     dom.circularProgress = document.querySelector('.circular-progress');
     dom.circularProgressValue = document.querySelector('.circular-progress-value');
-    const statValues = document.querySelectorAll('.stat-item dd');
-    dom.statTakenValue = statValues[0];
-    dom.statMissedValue = statValues[1];
-    dom.statAdherenceValue = statValues[2];
+    const progressStatValues = document.querySelectorAll('.progress-stats .stat-item dd');
+    dom.progressTakenValue = progressStatValues[0];
+    dom.progressMissedValue = progressStatValues[1];
+    dom.progressAdherenceValue = progressStatValues[2];
+
+    dom.healthTipIcon = document.getElementById('health-tip-icon');
+    dom.healthTipText = document.getElementById('health-tip-text');
+    dom.healthTipNext = document.getElementById('health-tip-next');
+
+    dom.waterFill = document.getElementById('water-fill');
+    dom.waterCountValue = document.getElementById('water-count-value');
+    dom.waterIncrement = document.getElementById('water-increment');
+    dom.waterDecrement = document.getElementById('water-decrement');
+
+    dom.addMedicineFab = document.getElementById('add-medicine-fab');
+
+    dom.medicineModalOverlay = document.getElementById('medicine-modal-overlay');
+    dom.medicineModalTitle = document.getElementById('medicine-modal-title');
+    dom.medicineModalClose = document.getElementById('medicine-modal-close');
+    dom.medicineForm = document.getElementById('medicine-form');
+    dom.medicineNameInput = document.getElementById('medicine-name-input');
+    dom.medicineNameError = document.getElementById('medicine-name-error');
+    dom.medicineTypeSelect = document.getElementById('medicine-type-select');
+    dom.medicineTypeError = document.getElementById('medicine-type-error');
+    dom.medicineDosageInput = document.getElementById('medicine-dosage-input');
+    dom.medicineDosageError = document.getElementById('medicine-dosage-error');
+    dom.medicineTimeInput = document.getElementById('medicine-time-input');
+    dom.medicineTimeError = document.getElementById('medicine-time-error');
+    dom.medicineFormSubmit = document.getElementById('medicine-form-submit');
+    dom.medicineFormCancel = document.getElementById('medicine-form-cancel');
+
+    dom.confirmModalOverlay = document.getElementById('confirm-modal-overlay');
+    dom.confirmTitle = document.getElementById('confirm-title');
+    dom.confirmMessage = document.getElementById('confirm-message');
+    dom.confirmConfirmBtn = document.getElementById('confirm-confirm-btn');
+    dom.confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+
+    dom.detailsModalOverlay = document.getElementById('details-modal-overlay');
+    dom.detailsModalClose = document.getElementById('details-modal-close');
+    dom.detailsName = document.getElementById('details-name');
+    dom.detailsType = document.getElementById('details-type');
+    dom.detailsDosage = document.getElementById('details-dosage');
+    dom.detailsTime = document.getElementById('details-time');
+    dom.detailsStatusBadge = document.getElementById('details-status-badge');
+    dom.detailsEditBtn = document.getElementById('details-edit-btn');
+    dom.detailsDeleteBtn = document.getElementById('details-delete-btn');
+    dom.detailsCloseBtn = document.getElementById('details-close-btn');
+
+    dom.reminderModalOverlay = document.getElementById('reminder-modal-overlay');
+    dom.reminderMessage = document.getElementById('reminder-message');
+    dom.reminderTakenBtn = document.getElementById('reminder-taken-btn');
+    dom.reminderDismissBtn = document.getElementById('reminder-dismiss-btn');
+
+    dom.toastContainer = document.getElementById('toast-container');
+    dom.medicineCardTemplate = document.getElementById('medicine-card-template');
+    dom.timelineItemTemplate = document.getElementById('timeline-item-template');
+    dom.toastTemplate = document.getElementById('toast-template');
+    dom.emptyStateTemplate = document.getElementById('empty-state-template');
+  }
+
+  function wireControls() {
+    dom.medicineSearch.addEventListener('input', debounce((event) => {
+      searchTerm = event.target.value.trim().toLowerCase();
+      renderMedicineList();
+    }, 200));
+
+    dom.filterChipGroup.addEventListener('click', (event) => {
+      const chip = event.target.closest('.filter-chip');
+      if (!chip) return;
+      activeFilter = chip.dataset.filter;
+      dom.filterChipGroup.querySelectorAll('.filter-chip').forEach((btn) => btn.classList.toggle('is-active', btn === chip));
+      renderMedicineList();
+    });
+
+    dom.medicineSort.addEventListener('change', (event) => {
+      activeSort = event.target.value;
+      renderMedicineList();
+    });
+  }
+
+  function wireModals() {
+    dom.medicineForm.addEventListener('submit', handleMedicineFormSubmit);
+    dom.medicineModalClose.addEventListener('click', () => closeModal(dom.medicineModalOverlay));
+    dom.medicineFormCancel.addEventListener('click', () => closeModal(dom.medicineModalOverlay));
+
+    dom.confirmConfirmBtn.addEventListener('click', () => {
+      if (confirmHandler) confirmHandler();
+      closeModal(dom.confirmModalOverlay);
+    });
+    dom.confirmCancelBtn.addEventListener('click', () => closeModal(dom.confirmModalOverlay));
+
+    dom.detailsModalClose.addEventListener('click', () => closeModal(dom.detailsModalOverlay));
+    dom.detailsCloseBtn.addEventListener('click', () => closeModal(dom.detailsModalOverlay));
+    dom.detailsEditBtn.addEventListener('click', () => {
+      const medicine = medicines.find((m) => m.id === detailsMedicineId);
+      closeModal(dom.detailsModalOverlay);
+      if (medicine) openMedicineForm(medicine);
+    });
+    dom.detailsDeleteBtn.addEventListener('click', () => deleteMedicine(detailsMedicineId));
+
+    wireModalDismissals();
   }
 
   function wireGlobalControls() {
-    if (dom.fab) dom.fab.addEventListener('click', () => openMedicineForm());
-    if (dom.bellButton) dom.bellButton.addEventListener('click', requestNotificationPermission);
+    dom.themeToggle.addEventListener('click', toggleTheme);
+    dom.notificationToggle.addEventListener('click', requestNotificationPermission);
+    dom.addMedicineFab.addEventListener('click', () => openMedicineForm());
+    dom.onboardingCta.addEventListener('click', () => openMedicineForm());
+    dom.onboardingDismiss.addEventListener('click', dismissOnboarding);
+    dom.healthTipNext.addEventListener('click', showNextHealthTip);
+    dom.waterIncrement.addEventListener('click', () => changeWaterCount(1));
+    dom.waterDecrement.addEventListener('click', () => changeWaterCount(-1));
     attachButtonPressAnimation();
   }
 
   /* -----------------------------------------------------------
-     App bootstrap
+     Render orchestration & bootstrap
      ----------------------------------------------------------- */
+  function renderAll() {
+    const stats = computeStats();
+    renderMedicineList();
+    renderTimeline();
+    renderSummary(stats);
+    renderQuickStats(stats);
+    renderProgress(stats);
+    refreshNextReminder();
+    evaluateOnboardingVisibility();
+  }
+
   function initApp() {
     cacheDom();
+    initTheme();
     loadMedicines();
-
-    if (dom.medicinesHeading) {
-      dom.medicinesHeading.insertAdjacentElement('afterend', buildControlsBar());
-    }
+    loadWaterState();
 
     notificationsEnabled = ('Notification' in window) && Notification.permission === 'granted';
     updateNotificationIndicator();
 
-    renderMedicineList();
-    renderProgress();
-    refreshNextReminder();
+    healthTipIndex = Math.floor(Math.random() * HEALTH_TIPS.length);
+    renderHealthTip();
+    renderWaterWidget();
+
+    renderAll();
     startCountdownTimer();
+
+    wireControls();
+    wireModals();
     wireGlobalControls();
+
+    setTimeout(hideLoadingScreen, 500);
   }
 
   document.addEventListener('DOMContentLoaded', initApp);
